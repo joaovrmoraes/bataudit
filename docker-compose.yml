@@ -1,0 +1,18 @@
+version:  '2'
+
+services:
+  postgres:
+    image: bitnami/postgresql:latest
+    container_name: bat_postgres
+    environment:
+      - POSTGRES_USER=batuser
+      - POSTGRES_PASSWORD=batpassword
+      - POSTGRES_DB=batdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+
+volumes:
+  postgres_data:
+    driver: local

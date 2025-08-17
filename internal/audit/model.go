@@ -1,16 +1,52 @@
 package audit
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 )
 
+type HTTPMethod string
+
+const (
+	GET    HTTPMethod = "GET"
+	POST   HTTPMethod = "POST"
+	PUT    HTTPMethod = "PUT"
+	DELETE HTTPMethod = "DELETE"
+)
+
+// UnmarshalJSON implements custom unmarshalling for HTTPMethod
+func (m *HTTPMethod) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	s = strings.ToUpper(s)
+	switch s {
+	case string(GET), string(POST), string(PUT), string(DELETE):
+		*m = HTTPMethod(s)
+		return nil
+	default:
+		return fmt.Errorf("invalid HTTP method: %s", s)
+	}
+}
+
+func (m HTTPMethod) IsValid() bool {
+	switch m {
+	case GET, POST, PUT, DELETE:
+		return true
+	}
+	return false
+}
+
 type Audit struct {
 	// Audit record metadata
-	ID           string `json:"id"`                         // Unique ID of the audit record
-	Method       string `json:"method" validate:"required"` // HTTP method (GET, POST, PUT, DELETE)
-	Path         string `json:"path" validate:"required"`   // API path accessed
-	StatusCode   int    `json:"status_code"`                // HTTP status code of the response
-	ResponseTime int64  `json:"response_time"`              // Response time in ms
+	ID           string     `json:"id"`                       // Unique ID of the audit record
+	Method       HTTPMethod `json:"method"`                   // HTTP method (GET, POST, PUT, DELETE)
+	Path         string     `json:"path" validate:"required"` // API path accessed
+	StatusCode   int        `json:"status_code"`              // HTTP status code of the response
+	ResponseTime int64      `json:"response_time"`            // Response time in ms
 
 	// User info
 	Identifier string   `json:"identifier"`           // ID of the user or API client

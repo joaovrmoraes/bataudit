@@ -5,10 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
+	"github.com/joaovrmoraes/bataudit/internal/db"
 )
 
 func main() {
 	r := gin.Default()
+	conn := db.Init()
+	sqlDB, _ := conn.DB()
+
+	defer sqlDB.Close()
 
 	auditGroup := r.Group("/audit")
 	{
