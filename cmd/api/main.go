@@ -17,7 +17,7 @@ func main() {
 
 	auditGroup := r.Group("/audit")
 	{
-		handler := audit.NewHandler()
+		handler := audit.NewHandler(conn)
 		handler.RegisterRoutes(auditGroup)
 	}
 

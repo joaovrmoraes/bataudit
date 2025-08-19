@@ -1,19 +1,24 @@
 package audit
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
 	validator *validator.Validate
+	db        *gorm.DB
 }
 
-func NewHandler() *Handler {
+func NewHandler(db *gorm.DB) *Handler {
 	return &Handler{
 		validator: validator.New(),
+		db:        db,
 	}
 }
 
@@ -45,9 +50,18 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement audit creation logic here
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Audit created successfully",
-		"audit":   audit,
+	if audit.ID == "" {
+		audit.ID = uuid.New().String()
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "Audit received and will be processed",
 	})
+
+	// Process the audit record asynchronously
+	go func(audit Audit) {
+		if err := h.db.Create(&audit).Error; err != nil {
+			fmt.Println("Failed to save audit record:", err)
+		}
+	}(audit)
 }
