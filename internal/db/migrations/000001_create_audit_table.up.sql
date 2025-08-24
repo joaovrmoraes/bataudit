@@ -16,6 +16,7 @@ CREATE TABLE audits (
     user_agent    VARCHAR(255),
     request_id    VARCHAR(128),
     query_params  JSONB,
+    path_params   JSONB,
     request_body  JSONB,
     error_message TEXT,
 

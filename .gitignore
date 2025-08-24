@@ -4,3 +4,7 @@
 *.db
 *.sqlite
 *.sqlite3
+
+#builds
+*/frontend/dist
+*.exe

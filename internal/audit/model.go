@@ -63,6 +63,7 @@ type Audit struct {
 	UserAgent    string         `json:"user_agent"`                               // User-Agent of the client
 	RequestID    string         `json:"request_id"`                               // Request traceability ID
 	QueryParams  datatypes.JSON `json:"query_params,omitempty" gorm:"type:jsonb"` // Query string parameters
+	PathParams   datatypes.JSON `json:"path_params,omitempty" gorm:"type:jsonb"`  // Path parameters
 	RequestBody  datatypes.JSON `json:"request_body,omitempty" gorm:"type:jsonb"` // Request body
 	ErrorMessage string         `json:"error_message,omitempty"`                  // Error message (if any)
 
@@ -70,4 +71,16 @@ type Audit struct {
 	ServiceName string    `json:"service_name"` // Name of the service/API
 	Environment string    `json:"environment"`  // Environment (prod, staging, dev)
 	Timestamp   time.Time `json:"timestamp"`    // Timestamp of the request
+}
+
+type AuditSummary struct {
+	ID          string     `json:"id"`
+	Identifier  string     `json:"identifier"`
+	UserEmail   string     `json:"user_email"`
+	UserName    string     `json:"user_name"`
+	Method      HTTPMethod `json:"method"`
+	Path        string     `json:"path"`
+	StatusCode  int        `json:"status_code"`
+	ServiceName string     `json:"service_name"`
+	Timestamp   time.Time  `json:"timestamp"`
 }
