@@ -38,7 +38,7 @@ func (r *repository) List(limit, offset int) (ListResult, error) {
 
 	// page search
 	err := r.db.Model(&Audit{}).
-		Select("id, identifier, user_email, user_name, method, path, status_code, service_name, timestamp").
+		Select("id, identifier, user_email, user_name, method, path, status_code, service_name, timestamp, response_time").
 		Order("timestamp desc").
 		Limit(limit).
 		Offset(offset).

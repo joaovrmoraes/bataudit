@@ -5,5 +5,5 @@ export const Route = createFileRoute('/app/_layout')({
 })
 
 function RouteComponent() {
-  return <div/>
+  return <div />
 }

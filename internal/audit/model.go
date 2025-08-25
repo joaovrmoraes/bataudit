@@ -74,13 +74,14 @@ type Audit struct {
 }
 
 type AuditSummary struct {
-	ID          string     `json:"id"`
-	Identifier  string     `json:"identifier"`
-	UserEmail   string     `json:"user_email"`
-	UserName    string     `json:"user_name"`
-	Method      HTTPMethod `json:"method"`
-	Path        string     `json:"path"`
-	StatusCode  int        `json:"status_code"`
-	ServiceName string     `json:"service_name"`
-	Timestamp   time.Time  `json:"timestamp"`
+	ID           string     `json:"id"`
+	Identifier   string     `json:"identifier"`
+	UserEmail    string     `json:"user_email"`
+	UserName     string     `json:"user_name"`
+	Method       HTTPMethod `json:"method"`
+	Path         string     `json:"path"`
+	StatusCode   int        `json:"status_code"`
+	ServiceName  string     `json:"service_name"`
+	Timestamp    time.Time  `json:"timestamp"`
+	ResponseTime int64      `json:"response_time"`
 }
