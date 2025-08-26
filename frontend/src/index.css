@@ -42,13 +42,13 @@
 
   --color-gradient-dark: linear-gradient(
     180deg,
-    hsl(220 13% 9%),
-    hsl(220 13% 7%)
+    hsl(222 35% 10%),
+    hsl(222 45% 8%)
   );
 
   --color-gradient-glow: radial-gradient(
     circle at center,
-    hsl(267 57% 50% / 0.1),
+    hsl(39 85% 55% / 0.12),
     transparent
   );
 }
@@ -139,7 +139,7 @@
   .bg-gradient-glow {
     background-image: radial-gradient(
       circle at center,
-      hsl(267 57% 50% / 0.1),
+      hsl(39 85% 55% / 0.12),
       transparent
     );
   }
@@ -151,11 +151,11 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-purple-800);
+  background: var(--color-slate-900);
   border-radius: 9999px;
 }
 
 body {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-purple-800) transparent;
+  scrollbar-color: var(--color-slate-900) transparent;
 }

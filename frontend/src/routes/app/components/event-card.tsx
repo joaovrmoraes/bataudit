@@ -42,7 +42,7 @@ export function EventCard({ event, className }: EventCardProps) {
       case 'GET':
         return 'text-green-500'
       case 'POST':
-        return 'text-purple-500'
+        return 'text-slate-500'
       case 'PUT':
         return 'text-yellow-500'
       case 'DELETE':
@@ -57,7 +57,7 @@ export function EventCard({ event, className }: EventCardProps) {
   return (
     <Card
       className={cn(
-        'p-4 flex flex-col gap-2 transition-all duration-300 border-border/50 bg-card/50 backdrop-blur-sm hover:[box-shadow:0_0_20px_hsl(267_57%_50%_/_0.3)] hover:cursor-pointer',
+        'p-4 flex flex-col gap-2 transition-all duration-300 border-border/50 bg-transparent backdrop-blur-sm hover:[box-shadow:0_0_20px_hsl(39_85%_55%_/_0.25)] hover:cursor-pointer',
         className
       )}
     >

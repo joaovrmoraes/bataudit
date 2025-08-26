@@ -1,6 +1,6 @@
-import { Activity, Search, Settings } from 'lucide-react'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
+// import { Activity, Search, Settings } from 'lucide-react'
+// import { Button } from './ui/button'
+// import { Input } from './ui/input'
 
 export function Header() {
   return (
@@ -9,16 +9,14 @@ export function Header() {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
             <div>
-              <h1 className="text-xl font-bold text-purple-500">
-                BatAudit
-              </h1>
+              <h1 className="text-xl font-bold text-slate-500">BatAudit</h1>
               <p className="text-xs text-muted-foreground">System Monitoring</p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="relative flex-1 max-w-sm">
+          {/* <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search events..."
@@ -33,7 +31,7 @@ export function Header() {
 
           <Button variant="ghost" size="sm">
             <Settings className="h-4 w-4" />
-          </Button>
+          </Button> */}
         </div>
       </div>
     </header>
