@@ -32,7 +32,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		// Basic worker configuration
 		InitialWorkerCount: 2,  // Start with fewer workers
-		MinWorkerCount:     1,  // Always keep at least 1 worker running
+		MinWorkerCount:     2,  // Manter pelo menos 2 workers sempre ativos
 		MaxWorkerCount:     10, // Limit to 10 workers
 		MaxRetries:         3,
 		PollDuration:       1 * time.Second, // More frequent polling

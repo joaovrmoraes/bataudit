@@ -1,4 +1,4 @@
-version:  '2'
+version: '3.8'
 
 services:
   postgres:
@@ -12,13 +12,21 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/bitnami/postgresql
+    networks:
+      - bataudit-network
   
   redis:
-    image: redis:latest
+    image: redis:alpine
     container_name: bat_redis
     ports:
       - "6379:6379"
+    networks:
+      - bataudit-network
 
 volumes:
   postgres_data:
     driver: local
+
+networks:
+  bataudit-network:
+    driver: bridge

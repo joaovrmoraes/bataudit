@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  writer:
+    build:
+      context: .
+      dockerfile: cmd/api/writer/Dockerfile
+    container_name: bat_writer
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=batuser
+      - DB_PASSWORD=batpassword
+      - DB_NAME=batdb
+      - REDIS_ADDRESS=redis:6379
+      - GIN_MODE=release
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure:3
+    networks:
+      - bataudit-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: cmd/api/worker/Dockerfile
+    container_name: bat_worker
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=batuser
+      - DB_PASSWORD=batpassword
+      - DB_NAME=batdb
+      - REDIS_ADDRESS=redis:6379
+      - WORKER_INITIAL_COUNT=2
+      - WORKER_MIN_COUNT=2
+      - WORKER_MAX_COUNT=10
+      - ENABLE_AUTOSCALING=true
+      - SCALE_UP_THRESHOLD=5
+      - SCALE_DOWN_THRESHOLD=1
+      - WORKER_SCALE_FACTOR=1.5
+      - COOLDOWN_PERIOD=30s
+      - QUEUE_NAME=bataudit:events
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      writer:
+        condition: service_healthy
+    restart: on-failure:3
+    networks:
+      - bataudit-network
+
+  postgres:
+    image: bitnami/postgresql:latest
+    container_name: bat_postgres
+    environment:
+      - POSTGRES_USER=batuser
+      - POSTGRES_PASSWORD=batpassword
+      - POSTGRES_DB=batdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+    networks:
+      - bataudit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U batuser -d batdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  redis:
+    image: redis:alpine
+    container_name: bat_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - bataudit-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  bataudit-network:
+    driver: bridge

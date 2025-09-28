@@ -1,0 +1,3 @@
+@echo off
+echo Exibindo logs do container %1...
+docker logs -f %1
