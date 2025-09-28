@@ -22,7 +22,7 @@ func main() {
 	auditGroup := r.Group("/audit")
 	{
 		handler := audit.NewHandler(audit.NewRepository(conn))
-		handler.RegisterRoutes(auditGroup)
+		handler.RegisterReadRoutes(auditGroup)
 	}
 
 	handler := health.NewHealthHandler(conn, "1.0.0", "development")
@@ -30,6 +30,6 @@ func main() {
 
 	r.Static("/app", "./frontend/dist")
 
-	fmt.Println("Server running on:8080")
-	r.Run()
+	fmt.Println("Reader server running on:8082")
+	r.Run(":8082")
 }

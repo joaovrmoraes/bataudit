@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/joaovrmoraes/bataudit/internal/queue"
 	"gorm.io/gorm"
 )
 
@@ -17,40 +19,88 @@ type Handler struct {
 	service    *Service
 }
 
+// QueueHandler extends Handler to include queue processing capabilities
+type QueueHandler struct {
+	*Handler
+	queue *queue.RedisQueue
+}
+
+// NewQueueHandler creates a new QueueHandler instance
+func NewQueueHandler(repository Repository, queue *queue.RedisQueue) *QueueHandler {
+	return &QueueHandler{
+		Handler: NewHandler(repository),
+		queue:   queue,
+	}
+}
+
 func NewHandler(repository Repository) *Handler {
+	v := validator.New()
+
+	RegisterCustomValidations(v)
+
 	return &Handler{
-		validator:  validator.New(),
+		validator:  v,
 		repository: repository,
 		service:    NewService(repository),
 	}
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
-	router.POST("", h.Create)
 	router.GET("", h.List)
 	router.GET("/:id", h.Details)
 }
 
-func (h *Handler) Create(c *gin.Context) {
+func (h *QueueHandler) RegisterWriteRoutes(router *gin.RouterGroup) {
+	router.POST("", h.Create)
+}
+
+func (h *Handler) RegisterReadRoutes(router *gin.RouterGroup) {
+	router.GET("", h.List)
+	router.GET("/:id", h.Details)
+}
+
+func (h *QueueHandler) Create(c *gin.Context) {
 	var audit Audit
 
 	if err := c.ShouldBindJSON(&audit); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid JSON format",
 			"details": err.Error(),
+			"status":  "failed",
+			"code":    "BAT-001",
 		})
 		return
 	}
 
+	if audit.Timestamp.IsZero() {
+		audit.Timestamp = time.Now()
+	}
+
+	SanitizeAudit(&audit)
+
+	if DetectSensitiveData(&audit) {
+		MaskSensitiveData(&audit)
+	}
+
 	if err := h.validator.Struct(&audit); err != nil {
-		var validationErrors []string
+		var validationErrors []map[string]string
+
 		for _, err := range err.(validator.ValidationErrors) {
-			validationErrors = append(validationErrors, err.Field()+" is "+err.Tag())
+			fieldErr := map[string]string{
+				"field":   err.Field(),
+				"value":   fmt.Sprintf("%v", err.Value()),
+				"tag":     err.Tag(),
+				"param":   err.Param(),
+				"message": FormatValidationError(err),
+			}
+			validationErrors = append(validationErrors, fieldErr)
 		}
 
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Validation failed",
-			"details": validationErrors,
+			"error":      "Validation failed",
+			"validation": validationErrors,
+			"status":     "failed",
+			"code":       "BAT-002",
 		})
 		return
 	}
@@ -59,24 +109,31 @@ func (h *Handler) Create(c *gin.Context) {
 		audit.ID = uuid.New().String()
 	}
 
+	if audit.RequestID == "" {
+		audit.RequestID = fmt.Sprintf("bat-%s", uuid.New().String())
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := h.queue.Enqueue(ctx, audit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to queue audit event",
+			"details": err.Error(),
+			"status":  "failed",
+			"code":    "BAT-003",
+		})
+		return
+	}
+
 	c.JSON(http.StatusAccepted, gin.H{
-		"message": "Audit received and will be processed",
+		"message":    "Audit received and will be processed",
+		"status":     "success",
+		"audit_id":   audit.ID,
+		"request_id": audit.RequestID,
+		"timestamp":  audit.Timestamp,
 	})
-
-	// Process the audit record asynchronously usando Service
-	go func(audit Audit) {
-		maxRetries := 3
-		for i := 0; i < maxRetries; i++ {
-			err := h.service.CreateAudit(audit)
-
-			if err != nil {
-				fmt.Println("Failed to save audit record:", err)
-				time.Sleep(2 * time.Second) // Await 2 seconds before retrying
-			} else {
-				break // Success, exit the loop
-			}
-		}
-	}(audit)
 }
 
 func (h *Handler) List(c *gin.Context) {

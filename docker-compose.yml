@@ -12,6 +12,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/bitnami/postgresql
+  
+  redis:
+    image: redis:latest
+    container_name: bat_redis
+    ports:
+      - "6379:6379"
 
 volumes:
   postgres_data:
