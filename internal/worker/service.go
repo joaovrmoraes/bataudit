@@ -16,14 +16,30 @@ type Service struct {
 	config     *Config
 	auditSvc   *audit.Service
 	redisQueue *queue.RedisQueue
+
+	// Worker management
+	activeWorkers  int               // Current number of active workers
+	workerChannels map[int]chan bool // Channels to signal workers to stop
+	workerMutex    sync.Mutex        // Mutex to protect worker operations
+
+	// Autoscaling
+	lastScaleTime  time.Time // Last time we scaled the workers
+	scalingMetrics struct {
+		avgProcessingTime time.Duration
+		processedEvents   int64
+		lastQueueSize     int64
+	}
 }
 
 // NewService creates a new instance of the worker service
 func NewService(config *Config, auditSvc *audit.Service, redisQueue *queue.RedisQueue) *Service {
 	return &Service{
-		config:     config,
-		auditSvc:   auditSvc,
-		redisQueue: redisQueue,
+		config:         config,
+		auditSvc:       auditSvc,
+		redisQueue:     redisQueue,
+		activeWorkers:  0,
+		workerChannels: make(map[int]chan bool),
+		lastScaleTime:  time.Now(),
 	}
 }
 
@@ -31,17 +47,15 @@ func NewService(config *Config, auditSvc *audit.Service, redisQueue *queue.Redis
 func (s *Service) Start(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	fmt.Printf("Starting %d workers processing queue %s\n", s.config.WorkerCount, s.config.QueueName)
+	fmt.Printf("Starting with %d workers (min: %d, max: %d) processing queue %s\n",
+		s.config.InitialWorkerCount, s.config.MinWorkerCount, s.config.MaxWorkerCount, s.config.QueueName)
 
-	// Iniciar monitoramento periódico da fila
+	// initial start of monitoring with autoscaling support
 	wg.Add(1)
-	go s.monitorQueueSize(ctx, &wg)
+	go s.monitorQueueWithAutoscaling(ctx, &wg)
 
-	// Start the workers
-	for i := 0; i < s.config.WorkerCount; i++ {
-		wg.Add(1)
-		go s.runWorker(ctx, i, &wg)
-	}
+	// Start initial workers
+	s.scaleWorkers(ctx, &wg, s.config.InitialWorkerCount)
 
 	// Wait for all workers to finish
 	wg.Wait()
@@ -49,11 +63,11 @@ func (s *Service) Start(ctx context.Context) error {
 	return nil
 }
 
-// monitorQueueSize - monitors the queue size periodically
-func (s *Service) monitorQueueSize(ctx context.Context, wg *sync.WaitGroup) {
+// monitorQueueWithAutoscaling - monitors the queue size periodically and manages worker autoscaling
+func (s *Service) monitorQueueWithAutoscaling(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	ticker := time.NewTicker(30 * time.Second) // Check every 30 seconds
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -67,16 +81,44 @@ func (s *Service) monitorQueueSize(ctx context.Context, wg *sync.WaitGroup) {
 			cancel()
 
 			if err == nil {
-				fmt.Printf("[Monitor] Status da fila %s: %d item(s)\n", s.config.QueueName, queueLen)
+				s.workerMutex.Lock()
+				activeWorkers := s.activeWorkers
+				s.workerMutex.Unlock()
+
+				fmt.Printf("[Monitor] Queue status %s: %d item(s), Active workers: %d\n",
+					s.config.QueueName, queueLen, activeWorkers)
+
+				// Update metrics for autoscaling decisions
+				s.scalingMetrics.lastQueueSize = queueLen
+
+				// Only consider scaling if autoscaling is enabled
+				if s.config.EnableAutoscaling {
+					timeSinceLastScale := time.Since(s.lastScaleTime)
+
+					if timeSinceLastScale > s.config.CooldownPeriod {
+						fmt.Printf("[Autoscale] Cooldown period passed (%.1fs), evaluating scaling needs...\n",
+							timeSinceLastScale.Seconds())
+						s.evaluateScaling(ctx, wg, queueLen)
+					} else {
+						fmt.Printf("[Autoscale] In cooldown period (%.1fs remaining), waiting...\n",
+							(s.config.CooldownPeriod - timeSinceLastScale).Seconds())
+
+						// Escala emergencial - se a fila estiver crescendo muito rápido, ignora o cooldown
+						if queueLen > s.config.ScaleUpThreshold*5 && activeWorkers < s.config.MaxWorkerCount {
+							fmt.Printf("[Autoscale] EMERGENCY SCALE: Queue exceeds 5x threshold during cooldown, forcing scale up\n")
+							s.evaluateScaling(ctx, wg, queueLen)
+						}
+					}
+				}
 			} else {
-				fmt.Printf("[Monitor] Erro ao verificar tamanho da fila: %v\n", err)
+				fmt.Printf("[Monitor] Error checking queue size: %v\n", err)
 			}
 		}
 	}
 }
 
-// runWorker runs an individual worker that processes events from the queue
-func (s *Service) runWorker(ctx context.Context, id int, wg *sync.WaitGroup) {
+// runWorkerWithControl runs an individual worker with a dedicated stop channel for autoscaling
+func (s *Service) runWorkerWithControl(ctx context.Context, id int, wg *sync.WaitGroup, stopChan <-chan bool) {
 	defer wg.Done()
 
 	fmt.Printf("Worker %d started\n", id)
@@ -88,7 +130,11 @@ func (s *Service) runWorker(ctx context.Context, id int, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Printf("Worker %d stopped\n", id)
+			fmt.Printf("Worker %d stopped (context done)\n", id)
+			return
+
+		case <-stopChan:
+			fmt.Printf("Worker %d stopped (autoscaling)\n", id)
 			return
 
 		case <-ticker.C:
@@ -112,14 +158,14 @@ func (s *Service) runWorker(ctx context.Context, id int, wg *sync.WaitGroup) {
 				continue
 			}
 
-			// Verificar tamanho da fila
+			// Check queue size
 			ctxQueueLen, cancelQueueLen := context.WithTimeout(context.Background(), 1*time.Second)
 			queueLen, errQueueLen := s.redisQueue.QueueLength(ctxQueueLen)
 			cancelQueueLen()
 
-			queueSizeInfo := "tamanho da fila desconhecido"
+			queueSizeInfo := "unknown queue size"
 			if errQueueLen == nil {
-				queueSizeInfo = fmt.Sprintf("%d item(s) restante(s) na fila", queueLen)
+				queueSizeInfo = fmt.Sprintf("%d item(s) remaining in queue", queueLen)
 			}
 
 			// Process the item
@@ -129,7 +175,7 @@ func (s *Service) runWorker(ctx context.Context, id int, wg *sync.WaitGroup) {
 				continue
 			}
 
-			fmt.Printf("Worker %d: Processando evento %s (%s)\n", id, auditEvent.ID, queueSizeInfo)
+			fmt.Printf("Worker %d: Processing event %s (%s)\n", id, auditEvent.ID, queueSizeInfo)
 
 			// Try to process with retries
 			success := s.processWithRetry(id, auditEvent)

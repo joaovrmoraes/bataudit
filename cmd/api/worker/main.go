@@ -16,8 +16,13 @@ func main() {
 	sqlDB, _ := conn.DB()
 	defer sqlDB.Close()
 
-	// Load worker configuration
+	// Load worker configuration with autoscaling
 	config := worker.DefaultConfig()
+
+	// Custom configuration from environment variables
+	// This allows for dynamic configuration in different environments
+	worker.ConfigureFromEnv(config)
+
 	maxRetries := 5
 
 	// Connect to Redis with retry
@@ -26,6 +31,7 @@ func main() {
 		config.QueueName,
 		maxRetries,
 	)
+
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
@@ -45,8 +51,8 @@ func main() {
 	// Setup handler for interrupt signals
 	worker.SetupSignalHandler(ctx, cancel)
 
-	// Start workers and wait until they are stopped
-	fmt.Printf("Starting %d workers...\n", config.WorkerCount)
+	// Start workers with autoscaling enabled
+	fmt.Println("Starting BatAudit worker service with autoscaling...")
 	if err := workerService.Start(ctx); err != nil {
 		log.Fatalf("Worker service failed: %v", err)
 	}

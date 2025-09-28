@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
+	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
 	"github.com/joaovrmoraes/bataudit/internal/health"
 	"github.com/joaovrmoraes/bataudit/internal/queue"
@@ -38,6 +39,7 @@ func main() {
 	handler := health.NewHealthHandler(conn, "1.0.0", "development")
 	handler.RegisterRoutes(r.Group(""))
 
-	fmt.Println("Writer server running on:8081")
-	r.Run(":8081")
+	port := config.GetEnv("API_WRITER_PORT", "8081")
+	fmt.Printf("Writer server running on port %s\n", port)
+	r.Run(":" + port)
 }

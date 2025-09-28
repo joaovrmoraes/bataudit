@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
+	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
 	"github.com/joaovrmoraes/bataudit/internal/health"
 )
@@ -30,6 +31,7 @@ func main() {
 
 	r.Static("/app", "./frontend/dist")
 
-	fmt.Println("Reader server running on:8082")
-	r.Run(":8082")
+	port := config.GetEnv("API_READER_PORT", "8082")
+	fmt.Printf("Reader server running on port %s\n", port)
+	r.Run(":" + port)
 }
