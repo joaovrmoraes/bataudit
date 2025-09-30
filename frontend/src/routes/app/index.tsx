@@ -1,8 +1,6 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
-// import { HealthStatus } from './components/health-status'
 import { ListAudit } from '@/http/audit/list'
-// import { getHealthDetails } from '@/http/health/details'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Activity } from 'lucide-react'

@@ -5,10 +5,17 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joaovrmoraes/bataudit/graph"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
 	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
-	"github.com/joaovrmoraes/bataudit/internal/health"
+	"github.com/vektah/gqlparser/v2/ast"
+
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/lru"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
 )
 
 func main() {
@@ -20,14 +27,25 @@ func main() {
 
 	defer sqlDB.Close()
 
-	auditGroup := r.Group("/audit")
-	{
-		handler := audit.NewHandler(audit.NewRepository(conn))
-		handler.RegisterReadRoutes(auditGroup)
+	resolver := &graph.Resolver{
+		AuditService: audit.NewService(audit.NewRepository(conn)),
 	}
 
-	handler := health.NewHealthHandler(conn, "1.0.0", "development")
-	handler.RegisterRoutes(r.Group(""))
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
+
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+
+	srv.Use(extension.Introspection{})
+	srv.Use(extension.AutomaticPersistedQuery{
+		Cache: lru.New[string](100),
+	})
+
+	r.GET("/", gin.WrapH(playground.Handler("GraphQL playground", "/query")))
+	r.POST("/query", gin.WrapH(srv))
 
 	r.Static("/app", "./frontend/dist")
 

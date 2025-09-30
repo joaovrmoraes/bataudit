@@ -1,0 +1,46 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+type Audit {
+  id: ID!
+  identifier: String!
+  user_email: String
+  user_name: String
+  method: String!
+  path: String!
+  status_code: Int
+  service_name: String!
+  timestamp: String!
+  response_time: Int
+}
+
+type AuditSummary {
+  id: ID!
+  identifier: String!
+  user_email: String
+  user_name: String
+  method: String!
+  path: String!
+  status_code: Int
+  service_name: String!
+  timestamp: String!
+  response_time: Int
+}
+
+type Pagination {
+  limit: Int!
+  page: Int!
+  totalItems: Int!
+  totalPage: Int!
+}
+
+type AuditList {
+  data: [AuditSummary!]!
+  pagination: Pagination!
+}
+
+type Query {
+  audits(page: Int = 1, limit: Int = 10): AuditList!
+  audit(id: ID!): Audit
+}
