@@ -24,7 +24,7 @@ func RunMigrations(config *Database) error {
 	case "sqlite":
 		dsn = "sqlite3://" + config.SQLitePath
 	default:
-		return fmt.Errorf("driver não suportado: %s", config.Driver)
+		return fmt.Errorf("unsupported driver: %s", config.Driver)
 	}
 
 	m, err := migrate.New(

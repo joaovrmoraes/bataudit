@@ -1,69 +1,78 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React dashboard for visualizing BatAudit events and monitoring system health.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| Tool | Version | Role |
+|---|---|---|
+| React | 19 | UI framework |
+| TypeScript | — | Type safety |
+| Vite | 7 | Build tool and dev server |
+| TanStack Router | 1.x | File-based routing |
+| TanStack Query | 5.x | Server state and data fetching |
+| Tailwind CSS | 4 | Utility-first styling |
+| shadcn/ui | — | UI component primitives (Radix UI) |
+| Lucide React | — | Icons |
+| Biome | — | Linting and formatting |
 
-## Expanding the ESLint configuration
+## Pages
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+| Route | Description |
+|---|---|
+| `/app` | Main dashboard — health status + paginated event feed |
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## API calls
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+All API calls target the Reader service. The base URL is currently hardcoded to `http://localhost:8080` — this will be replaced by a `VITE_API_URL` environment variable (Phase prerequisites in the roadmap).
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Function | Endpoint | Description |
+|---|---|---|
+| `ListAudit(page, limit)` | `GET /audit` | Paginated list of audit events |
+| `getHealthDetails()` | `GET /health` | System health metrics |
+
+## Project structure
+
+```
+src/
+├── components/          # Shared UI components
+│   ├── ui/             # shadcn/ui primitives (Badge, Button, Card, etc.)
+│   ├── header.tsx      # Top navigation bar
+│   └── app-pagination.tsx
+├── http/               # API client functions
+│   ├── audit/list.tsx
+│   ├── health/details.tsx
+│   └── query-client.ts
+├── routes/             # File-based routes (TanStack Router)
+│   ├── __root.tsx      # Root layout (QueryClientProvider, Header)
+│   └── app/
+│       ├── _layout.tsx
+│       ├── index.tsx   # Dashboard page
+│       └── components/
+│           ├── event-card.tsx      # Individual audit event display
+│           ├── health-status.tsx   # Health metrics grid
+│           └── status-indicator.tsx
+└── lib/
+    └── utils.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Running locally
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Install dependencies
+npm install
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start dev server (http://localhost:5173)
+npm run dev
+
+# Build for production
+npm run build
 ```
+
+The production build outputs to `dist/`. In production, the Reader service serves the built assets at `/app`.
+
+## Development notes
+
+- The dev server proxies nothing by default — the Reader and Writer must be running locally or accessible at their hardcoded addresses
+- The app uses a dark gradient background by default; light mode is not yet implemented (planned in Phase 10)
+- The "Filter" button on the event feed is not yet functional (planned in Phase 6.2)

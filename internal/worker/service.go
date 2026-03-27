@@ -103,7 +103,7 @@ func (s *Service) monitorQueueWithAutoscaling(ctx context.Context, wg *sync.Wait
 						fmt.Printf("[Autoscale] In cooldown period (%.1fs remaining), waiting...\n",
 							(s.config.CooldownPeriod - timeSinceLastScale).Seconds())
 
-						// Escala emergencial - se a fila estiver crescendo muito rápido, ignora o cooldown
+						// Emergency scale — queue is growing too fast, bypass cooldown
 						if queueLen > s.config.ScaleUpThreshold*5 && activeWorkers < s.config.MaxWorkerCount {
 							fmt.Printf("[Autoscale] EMERGENCY SCALE: Queue exceeds 5x threshold during cooldown, forcing scale up\n")
 							s.evaluateScaling(ctx, wg, queueLen)

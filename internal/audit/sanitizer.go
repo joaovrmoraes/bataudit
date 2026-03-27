@@ -138,7 +138,7 @@ func DetectSensitiveData(audit *Audit) bool {
 
 	apiKeyPattern := regexp.MustCompile(`(?i)key[-_]?[0-9a-zA-Z]{16,}`)
 
-	passwordPattern := regexp.MustCompile(`(?i)password|senha|secret`)
+	passwordPattern := regexp.MustCompile(`(?i)"(password|passwd|senha|secret|pwd)"\s*:`)
 
 	if len(audit.RequestBody) > 0 {
 		bodyStr := string(audit.RequestBody)

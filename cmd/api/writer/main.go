@@ -24,39 +24,39 @@ func main() {
 	var err error
 
 	for i := 0; i < maxRetries; i++ {
-		fmt.Printf("Tentando conectar ao banco de dados (tentativa %d de %d)...\n", i+1, maxRetries)
+		fmt.Printf("Trying to connect to database (attempt %d of %d)...\n", i+1, maxRetries)
 		conn = db.Init()
 		if conn != nil {
-			fmt.Println("Conexão com o banco de dados estabelecida com sucesso!")
+			fmt.Println("Database connection established successfully!")
 			break
 		}
 		if i < maxRetries-1 {
-			fmt.Println("Falha na conexão, tentando novamente em 5 segundos...")
+			fmt.Println("Connection failed, retrying in 5 seconds...")
 			time.Sleep(5 * time.Second)
 		}
 	}
 
 	if conn == nil {
-		log.Fatalf("Não foi possível conectar ao banco de dados após %d tentativas", maxRetries)
+		log.Fatalf("Could not connect to database after %d attempts", maxRetries)
 	}
 
 	sqlDB, _ := conn.DB()
 	defer sqlDB.Close()
 
 	redisAddress := config.GetEnv("REDIS_ADDRESS", "localhost:6379")
-	fmt.Printf("Conectando ao Redis em: %s\n", redisAddress)
+	fmt.Printf("Connecting to Redis at: %s\n", redisAddress)
 
 	var redisQueue *queue.RedisQueue
 	for i := 0; i < maxRetries; i++ {
-		fmt.Printf("Tentando conectar ao Redis (tentativa %d de %d)...\n", i+1, maxRetries)
+		fmt.Printf("Trying to connect to Redis (attempt %d of %d)...\n", i+1, maxRetries)
 		redisQueue, err = queue.NewRedisQueue(redisAddress, queue.DefaultQueueName)
 		if err == nil {
-			fmt.Println("Conexão com Redis estabelecida com sucesso!")
+			fmt.Println("Redis connection established successfully!")
 			break
 		}
-		fmt.Printf("Falha na conexão com Redis: %v\n", err)
+		fmt.Printf("Redis connection failed: %v\n", err)
 		if i < maxRetries-1 {
-			fmt.Println("Tentando novamente em 5 segundos...")
+			fmt.Println("Retrying in 5 seconds...")
 			time.Sleep(5 * time.Second)
 		}
 	}
