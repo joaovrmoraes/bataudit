@@ -397,6 +397,40 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 
 ---
 
+## Fase 12 — CI/CD
+
+**Objetivo:** Automatizar build, testes e deploy para garantir qualidade contínua e facilitar contribuições externas.
+
+### 12.1 Pipeline de validação (em todo PR e push)
+
+- [ ] Criar workflow `.github/workflows/ci.yml`
+- [ ] Rodar `go vet ./...` e `golangci-lint` no backend
+- [ ] Rodar testes unitários (`go test ./...`)
+- [ ] Rodar testes de integração via `docker-compose.test.yml`
+- [ ] Rodar lint e typecheck no frontend (`eslint`, `tsc --noEmit`)
+- [ ] Bloquear merge se qualquer etapa falhar
+
+### 12.2 Build e publicação de imagens Docker
+
+- [ ] Criar workflow `.github/workflows/release.yml` disparado em tags (`v*`)
+- [ ] Build das imagens `writer`, `reader` e `worker`
+- [ ] Push para GitHub Container Registry (`ghcr.io/bataudit/*`)
+- [ ] Taggear imagens com versão semântica e `latest`
+
+### 12.3 Deploy automático em staging
+
+- [ ] Criar workflow de deploy disparado ao mergear na `main`
+- [ ] Fazer SSH no servidor de staging e atualizar via `docker compose pull && docker compose up -d`
+- [ ] Configurar secrets no GitHub Actions (`SSH_KEY`, `STAGING_HOST`, etc.)
+- [ ] Notificar no canal de dev (Slack/Discord/email) ao fim do deploy
+
+### 12.4 Versionamento semântico
+
+- [ ] Adotar [Conventional Commits](https://www.conventionalcommits.org/) como padrão
+- [ ] Criar workflow que gera `CHANGELOG.md` e tag de versão automaticamente via `release-please` ou `semantic-release`
+
+---
+
 ## Fase 11 — Melhorias gerais (backlog)
 
 - [ ] Adicionar endpoint `GET /audit/stats` — resumo agregado (total por serviço, por método, erros, etc.)
@@ -408,7 +442,7 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 ## Ordem sugerida de execução
 
 ```
-Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 → Fase 7 → Fase 8 → Fase 9 → Fase 10 → Fase 11
+Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 → Fase 7 → Fase 8 → Fase 9 → Fase 10 → Fase 11 → Fase 12
 ```
 
 - Fase 1 e 2 são pré-requisitos para tudo
@@ -423,3 +457,5 @@ Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 →
 - Fase 9.3 (mock app) depende da Fase 7 (SDK Node.js) estar pronta
 - Fase 9.4 (seed) depende da Fase 3 (multi-projeto) estar pronta
 - Fase 10 (redesign) depende da Fase 6 (dashboard funcional) estar pronta — redesenhar em cima de algo que já funciona
+- Fase 12.1 (CI) pode ser iniciada a qualquer momento, mas o valor máximo vem depois da Fase 9 (testes) estar pronta
+- Fase 12.2 e 12.3 (build + deploy) fazem mais sentido após a Fase 3 (autenticação) e antes de lançar os SDKs públicos (Fase 7/8)
