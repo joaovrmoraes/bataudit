@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joaovrmoraes/bataudit/internal/anomaly"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
 	"github.com/joaovrmoraes/bataudit/internal/auth"
 	"github.com/joaovrmoraes/bataudit/internal/config"
@@ -80,6 +81,14 @@ func main() {
 	jwtSecret := config.GetEnv("JWT_SECRET", "change-me-in-production")
 	authRepo := auth.NewRepository(conn)
 	authService := auth.NewService(authRepo, jwtSecret)
+
+	// Seed default anomaly rules whenever a new project is auto-created.
+	anomalyRepo := anomaly.NewRepository(conn)
+	authService.OnProjectCreated = func(projectID string) {
+		if err := anomalyRepo.CreateDefaultRules(projectID); err != nil {
+			slog.Error("Failed to seed anomaly rules", "project_id", projectID, "error", err)
+		}
+	}
 
 	v1 := r.Group("/v1")
 	{

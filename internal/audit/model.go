@@ -44,11 +44,13 @@ func (m HTTPMethod) IsValid() bool {
 
 type Audit struct {
 	// Audit record metadata
-	ID           string     `json:"id" validate:"valid_uuid"`                         // Unique ID of the audit record
-	Method       HTTPMethod `json:"method" validate:"required,valid_http_method"`     // HTTP method (GET, POST, PUT, DELETE)
-	Path         string     `json:"path" validate:"required,max=255"`                 // API path accessed
-	StatusCode   int        `json:"status_code" validate:"omitempty,min=100,max=599"` // HTTP status code of the response
-	ResponseTime int64      `json:"response_time" validate:"omitempty,min=0"`         // Response time in ms
+	ID        string `json:"id"         validate:"valid_uuid"`
+	EventType string `json:"event_type" validate:"omitempty,oneof=http system.alert"` // http (default) or system.alert
+
+	Method       HTTPMethod `json:"method"        validate:"omitempty,valid_http_method"` // HTTP method; empty for system events
+	Path         string     `json:"path"          validate:"required,max=255"`
+	StatusCode   int        `json:"status_code"   validate:"omitempty,min=100,max=599"`
+	ResponseTime int64      `json:"response_time" validate:"omitempty,min=0"`
 
 	// User info
 	Identifier string         `json:"identifier" validate:"required,min=1,max=100"`          // ID of the user or API client
@@ -68,10 +70,12 @@ type Audit struct {
 	ErrorMessage string         `json:"error_message,omitempty" validate:"omitempty,max=1000"` // Error message (if any)
 
 	// System context
+	Source      string    `json:"source,omitempty" validate:"omitempty,oneof=backend browser"` // Event source: backend (default) or browser
 	ServiceName string    `json:"service_name" validate:"required,valid_service_name,max=100"` // Name of the service/API
 	Environment string    `json:"environment" validate:"required,valid_environment"`            // Environment (prod, staging, dev)
 	Timestamp   time.Time `json:"timestamp" validate:"required"`                                // Timestamp of the request
 	ProjectID   string    `json:"project_id,omitempty"`                                         // Resolved project (set by Writer automatically)
+	SessionID   string    `json:"session_id,omitempty" validate:"omitempty,max=100"`            // Optional explicit session ID (opt-in)
 }
 
 type Session struct {
@@ -83,9 +87,28 @@ type Session struct {
 	EventCount      int64   `json:"event_count"`
 }
 
+// SessionDetail is returned by GET /audit/sessions/:session_id (explicit session_id tracking).
+type SessionDetail struct {
+	SessionID       string         `json:"session_id"`
+	Identifier      string         `json:"identifier"`
+	ServiceName     string         `json:"service_name"`
+	SessionStart    string         `json:"session_start"`
+	SessionEnd      string         `json:"session_end"`
+	DurationSeconds float64        `json:"duration_seconds"`
+	EventCount      int64          `json:"event_count"`
+	Events          []AuditSummary `json:"events"`
+}
+
 type SessionFilters struct {
 	ProjectID   string
 	Identifier  string
+	ServiceName string
+	StartDate   *time.Time
+	EndDate     *time.Time
+}
+
+type OrphanFilters struct {
+	ProjectID   string
 	ServiceName string
 	StartDate   *time.Time
 	EndDate     *time.Time
@@ -120,6 +143,7 @@ type AuditStats struct {
 
 type AuditSummary struct {
 	ID           string     `json:"id"`
+	EventType    string     `json:"event_type"`
 	Identifier   string     `json:"identifier"`
 	UserEmail    string     `json:"user_email"`
 	UserName     string     `json:"user_name"`

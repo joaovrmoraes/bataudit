@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BatAudit — Self-Hosted Audit Logging</title>
+  <meta name="description" content="Lightweight, self-hosted audit logging platform. Collect, store, query, and get anomaly alerts for events from any application." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bg:      '#0f1117',
+            surface: '#1e2130',
+            border:  '#2d3350',
+            muted:   '#64748b',
+            primary: '#818cf8',
+            green:   '#34d399',
+            red:     '#f87171',
+            orange:  '#fb923c',
+            blue:    '#60a5fa',
+            teal:    '#2dd4bf',
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif; }
+    .gradient-text { background: linear-gradient(135deg, #818cf8, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .card { background: #1e2130; border: 1px solid #2d3350; border-radius: 0.75rem; }
+    pre { background: #0d1117; border: 1px solid #2d3350; border-radius: 0.5rem; overflow-x: auto; }
+    code { font-family: ui-monospace, 'Cascadia Code', monospace; font-size: 0.85em; }
+    .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; border: 1px solid; }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────────────────────────── -->
+<nav class="sticky top-0 z-50 border-b border-[#2d3350] bg-[#0f1117]/90 backdrop-blur-sm">
+  <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-md bg-[#818cf8] flex items-center justify-center font-bold text-sm text-white">B</div>
+      <span class="font-semibold text-white">BatAudit</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="#features" class="text-sm text-[#64748b] hover:text-white transition-colors hidden sm:block">Features</a>
+      <a href="#install" class="text-sm text-[#64748b] hover:text-white transition-colors hidden sm:block">Install</a>
+      <a href="https://github.com/joaovrmoraes/bataudit" target="_blank" rel="noopener"
+         class="text-sm text-[#64748b] hover:text-white transition-colors flex items-center gap-1.5">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ───────────────────────────────────────────────────────────────── -->
+<section class="max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
+  <div class="flex items-center justify-center gap-3 mb-6">
+    <span class="badge text-[#818cf8] border-[#818cf8]/30 bg-[#818cf8]/10">Self-Hosted</span>
+    <span class="badge text-[#34d399] border-[#34d399]/30 bg-[#34d399]/10">Open Source</span>
+  </div>
+
+  <h1 class="text-4xl sm:text-6xl font-bold text-white leading-tight mb-6">
+    Audit logging that<br/>
+    <span class="gradient-text">stays on your infrastructure</span>
+  </h1>
+
+  <p class="text-lg text-[#94a3b8] max-w-2xl mx-auto mb-10 leading-relaxed">
+    Collect, store, and query audit events from any application.
+    Real-time anomaly detection — no cloud, no external ML, no vendor lock-in.
+  </p>
+
+  <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+    <a href="#install"
+       class="px-6 py-3 rounded-lg bg-[#818cf8] text-white font-semibold hover:bg-[#6366f1] transition-colors w-full sm:w-auto text-center">
+      Get Started →
+    </a>
+    <a href="#demo"
+       class="px-6 py-3 rounded-lg border border-[#2d3350] text-[#94a3b8] font-semibold hover:border-[#818cf8]/50 hover:text-white transition-colors w-full sm:w-auto text-center">
+      Try Demo
+    </a>
+  </div>
+
+  <!-- Architecture preview -->
+  <div class="mt-16 card p-6 text-left max-w-3xl mx-auto">
+    <p class="text-xs text-[#64748b] uppercase tracking-widest mb-4">Architecture</p>
+    <div class="flex flex-wrap items-center gap-2 text-sm font-mono">
+      <span class="bg-[#818cf8]/10 text-[#818cf8] px-3 py-1.5 rounded border border-[#818cf8]/20">SDK / App</span>
+      <span class="text-[#64748b]">→</span>
+      <span class="bg-[#34d399]/10 text-[#34d399] px-3 py-1.5 rounded border border-[#34d399]/20">Writer :8081</span>
+      <span class="text-[#64748b]">→</span>
+      <span class="bg-[#60a5fa]/10 text-[#60a5fa] px-3 py-1.5 rounded border border-[#60a5fa]/20">Redis</span>
+      <span class="text-[#64748b]">→</span>
+      <span class="bg-[#fb923c]/10 text-[#fb923c] px-3 py-1.5 rounded border border-[#fb923c]/20">Worker</span>
+      <span class="text-[#64748b]">→</span>
+      <span class="bg-[#2dd4bf]/10 text-[#2dd4bf] px-3 py-1.5 rounded border border-[#2dd4bf]/20">PostgreSQL</span>
+      <span class="text-[#64748b]">→</span>
+      <span class="bg-[#818cf8]/10 text-[#818cf8] px-3 py-1.5 rounded border border-[#818cf8]/20">Reader :8082</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ───────────────────────────────────────────────────────────── -->
+<section id="features" class="max-w-6xl mx-auto px-6 py-20">
+  <h2 class="text-2xl font-bold text-white text-center mb-3">Everything you need for audit logging</h2>
+  <p class="text-[#64748b] text-center mb-12">Without the cloud bill.</p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <div class="card p-6 space-y-3">
+      <div class="w-9 h-9 rounded-lg bg-[#818cf8]/10 flex items-center justify-center text-[#818cf8] text-lg">📥</div>
+      <h3 class="font-semibold text-white">Event Ingestion</h3>
+      <p class="text-sm text-[#64748b] leading-relaxed">Send events via HTTP from any language using our SDK or a plain POST request. Events are validated, sanitized, and queued instantly.</p>
+    </div>
+
+    <div class="card p-6 space-y-3">
+      <div class="w-9 h-9 rounded-lg bg-[#f87171]/10 flex items-center justify-center text-[#f87171] text-lg">🛡️</div>
+      <h3 class="font-semibold text-white">Anomaly Detection</h3>
+      <p class="text-sm text-[#64748b] leading-relaxed">Statistical engine detects volume spikes, error rate surges, brute-force attempts, mass deletions, and silent services — no ML models needed.</p>
+    </div>
+
+    <div class="card p-6 space-y-3">
+      <div class="w-9 h-9 rounded-lg bg-[#34d399]/10 flex items-center justify-center text-[#34d399] text-lg">🔔</div>
+      <h3 class="font-semibold text-white">Notifications</h3>
+      <p class="text-sm text-[#64748b] leading-relaxed">Browser Push (VAPID) and Webhooks to any URL — Discord, Slack, PagerDuty, n8n. HMAC-SHA256 signatures with automatic retry.</p>
+    </div>
+
+    <div class="card p-6 space-y-3">
+      <div class="w-9 h-9 rounded-lg bg-[#60a5fa]/10 flex items-center justify-center text-[#60a5fa] text-lg">🏢</div>
+      <h3 class="font-semibold text-white">Multi-Project</h3>
+      <p class="text-sm text-[#64748b] leading-relaxed">Owner / Admin / Viewer roles per project. API keys scoped to projects. Projects auto-created on first event — zero configuration.</p>
+    </div>
+
+    <div class="card p-6 space-y-3">
+      <div class="w-9 h-9 rounded-lg bg-[#fb923c]/10 flex items-center justify-center text-[#fb923c] text-lg">📊</div>
+      <h3 class="font-semibold text-white">Export & Query</h3>
+      <p class="text-sm text-[#64748b] leading-relaxed">Filter by service, method, status, identifier, date range. Export up to 100 000 events as CSV or JSON with a single click.</p>
+    </div>
+
+    <div class="card p-6 space-y-3">
+      <div class="w-9 h-9 rounded-lg bg-[#2dd4bf]/10 flex items-center justify-center text-[#2dd4bf] text-lg">🗄️</div>
+      <h3 class="font-semibold text-white">Data Tiering</h3>
+      <p class="text-sm text-[#64748b] leading-relaxed">Raw events → hourly summaries → daily summaries. Infinite history without infinite storage. Configurable retention windows.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Demo ────────────────────────────────────────────────────────────────── -->
+<section id="demo" class="max-w-6xl mx-auto px-6 py-20">
+  <div class="card p-8 sm:p-12 text-center space-y-4">
+    <h2 class="text-2xl font-bold text-white">Try the live demo</h2>
+    <p class="text-[#94a3b8] max-w-md mx-auto">
+      Pre-loaded with realistic audit data. Read-only access — no sign-up required.
+    </p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+      <span class="text-sm text-[#64748b]">Login: <code class="text-[#34d399]">demo@bataudit.dev</code> / <code class="text-[#34d399]">demo</code></span>
+    </div>
+    <a href="https://demo.bataudit.dev/app" target="_blank" rel="noopener"
+       class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#818cf8] text-white font-semibold hover:bg-[#6366f1] transition-colors">
+      Open Demo Dashboard →
+    </a>
+    <p class="text-xs text-[#475569]">Demo data resets daily.</p>
+  </div>
+</section>
+
+<!-- ── Install ─────────────────────────────────────────────────────────────── -->
+<section id="install" class="max-w-6xl mx-auto px-6 py-20">
+  <h2 class="text-2xl font-bold text-white text-center mb-3">One command to start</h2>
+  <p class="text-[#64748b] text-center mb-10">Docker Compose is the only prerequisite.</p>
+
+  <div class="max-w-2xl mx-auto space-y-6">
+
+    <div class="space-y-2">
+      <p class="text-sm text-[#64748b] font-medium">1. Clone the repository</p>
+      <pre class="p-4"><code class="text-[#34d399]">git clone https://github.com/joaovrmoraes/bataudit.git
+cd bataudit</code></pre>
+    </div>
+
+    <div class="space-y-2">
+      <p class="text-sm text-[#64748b] font-medium">2. Start with demo data</p>
+      <pre class="p-4"><code class="text-[#34d399]">docker compose -f docker-compose.demo.yml up</code></pre>
+      <p class="text-xs text-[#475569]">Dashboard: <code>http://localhost:8082/app</code> &nbsp;·&nbsp; Login: <code>demo@bataudit.dev / demo</code></p>
+    </div>
+
+    <div class="space-y-2">
+      <p class="text-sm text-[#64748b] font-medium">3. Send your first event</p>
+      <pre class="p-4"><code class="text-[#60a5fa]">curl -X POST http://localhost:8081/v1/audit \
+  -H <span class="text-[#fb923c]">"X-API-Key: &lt;your-api-key&gt;"</span> \
+  -H <span class="text-[#fb923c]">"Content-Type: application/json"</span> \
+  -d <span class="text-[#34d399]">'{
+    "path": "/api/users",
+    "method": "GET",
+    "status_code": 200,
+    "identifier": "user-123",
+    "service_name": "my-api",
+    "environment": "production"
+  }'</span></code></pre>
+    </div>
+
+    <div class="space-y-2">
+      <p class="text-sm text-[#64748b] font-medium">Or use the Node.js SDK</p>
+      <pre class="p-4"><code class="text-[#818cf8]">npm install @bataudit/node</code>
+<code class="text-[#94a3b8]">
+import { BatAudit } from <span class="text-[#34d399]">'@bataudit/node'</span>
+
+const bat = new BatAudit(<span class="text-[#34d399]">'bat_your_api_key'</span>)
+await bat.log({ path: <span class="text-[#34d399]">'/api/users'</span>, method: <span class="text-[#34d399]">'GET'</span>,
+                statusCode: 200, identifier: <span class="text-[#34d399]">'user-123'</span>,
+                serviceName: <span class="text-[#34d399]">'my-api'</span> })</code></pre>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<footer class="border-t border-[#2d3350] mt-8">
+  <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded bg-[#818cf8] flex items-center justify-center font-bold text-xs text-white">B</div>
+      <span class="text-sm text-[#64748b]">BatAudit — MIT License</span>
+    </div>
+    <div class="flex items-center gap-6 text-sm text-[#64748b]">
+      <a href="https://github.com/joaovrmoraes/bataudit" target="_blank" rel="noopener" class="hover:text-white transition-colors">GitHub</a>
+      <a href="https://github.com/joaovrmoraes/bataudit/issues" target="_blank" rel="noopener" class="hover:text-white transition-colors">Issues</a>
+      <a href="http://localhost:8082/docs/index.html" class="hover:text-white transition-colors">API Docs</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

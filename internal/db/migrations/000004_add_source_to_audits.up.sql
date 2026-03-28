@@ -1,0 +1,1 @@
+ALTER TABLE audits ADD COLUMN source VARCHAR(16) NOT NULL DEFAULT 'backend';

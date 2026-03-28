@@ -1,0 +1,127 @@
+## BatAudit — One-Command Demo
+## Usage: docker compose -f docker-compose.demo.yml up
+## Dashboard: http://localhost:8082/app  |  Login: demo@bataudit.dev / demo
+
+version: '3.8'
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: bitnami/postgresql:latest
+    container_name: bat_demo_postgres
+    environment:
+      - POSTGRESQL_USERNAME=batuser
+      - POSTGRESQL_PASSWORD=batpassword
+      - POSTGRESQL_DATABASE=batdb
+    volumes:
+      - demo_postgres_data:/bitnami/postgresql
+    networks:
+      - bataudit-demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U batuser -d batdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    container_name: bat_demo_redis
+    networks:
+      - bataudit-demo
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── BatAudit services ────────────────────────────────────────────────────────
+
+  writer:
+    build:
+      context: .
+      dockerfile: cmd/api/writer/Dockerfile
+    container_name: bat_demo_writer
+    env_file: .env.demo
+    environment:
+      - REDIS_ADDRESS=redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure:5
+    networks:
+      - bataudit-demo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  reader:
+    build:
+      context: .
+      dockerfile: cmd/api/reader/Dockerfile
+    container_name: bat_demo_reader
+    env_file: .env.demo
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure:5
+    networks:
+      - bataudit-demo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: cmd/api/worker/Dockerfile
+    container_name: bat_demo_worker
+    env_file: .env.demo
+    environment:
+      - REDIS_ADDRESS=redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      writer:
+        condition: service_healthy
+    restart: on-failure:5
+    networks:
+      - bataudit-demo
+
+  # ── Seeder (runs once, then exits) ──────────────────────────────────────────
+
+  seeder:
+    build:
+      context: .
+      dockerfile: cmd/tools/seed/Dockerfile
+    container_name: bat_demo_seeder
+    env_file: .env.demo
+    depends_on:
+      reader:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - bataudit-demo
+
+volumes:
+  demo_postgres_data:
+    driver: local
+
+networks:
+  bataudit-demo:
+    driver: bridge

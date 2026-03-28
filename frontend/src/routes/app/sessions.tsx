@@ -1,12 +1,12 @@
 import React from 'react'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
-import { Clock, User, Activity, Filter, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { Clock, User, Activity, Filter, X, ChevronDown, ChevronRight, Hash } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { useAuditSessions, useSessionTimeline } from '@/queries/audit'
+import { useAuditSessions, useSessionTimeline, useSessionByID } from '@/queries/audit'
 import { useProject } from '@/lib/project-context'
 import { EventDetailModal } from './components/event-detail-modal'
 import type { Session } from '@/http/audit/sessions'
@@ -115,6 +115,9 @@ function SessionsPage() {
   const [filterOpen, setFilterOpen] = React.useState(false)
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null)
   const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null)
+  const [sessionIDInput, setSessionIDInput] = React.useState('')
+  const [lookupSessionID, setLookupSessionID] = React.useState<string | null>(null)
+  const { data: sessionDetail, isLoading: sessionDetailLoading } = useSessionByID(lookupSessionID)
 
   const filters = {
     projectId: selectedProjectId,
@@ -216,6 +219,73 @@ function SessionsPage() {
           </div>
         </Card>
       )}
+
+      {/* Explicit session_id lookup */}
+      <Card className="p-4 border-border/50 bg-card/60">
+        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Hash className="h-3.5 w-3.5" />
+          Look up session by explicit ID
+        </p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="session-id passed via SDK"
+            value={sessionIDInput}
+            onChange={e => setSessionIDInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') setLookupSessionID(sessionIDInput.trim() || null) }}
+            className="text-xs h-8 font-mono"
+          />
+          <Button size="sm" className="h-8 text-xs" onClick={() => setLookupSessionID(sessionIDInput.trim() || null)}>
+            Lookup
+          </Button>
+          {lookupSessionID && (
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setLookupSessionID(null); setSessionIDInput('') }}>
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+        {lookupSessionID && (
+          <div className="mt-3">
+            {sessionDetailLoading ? (
+              <p className="text-xs text-muted-foreground">Loading...</p>
+            ) : !sessionDetail ? (
+              <p className="text-xs text-destructive">No session found for ID: {lookupSessionID}</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <span className="text-muted-foreground">Identifier: <span className="text-foreground font-mono">{sessionDetail.identifier}</span></span>
+                  <span className="text-muted-foreground">Service: <span className="text-foreground font-mono">{sessionDetail.service_name}</span></span>
+                  <span className="text-muted-foreground">Duration: <span className="text-[#2dd4bf]">{formatDuration(sessionDetail.duration_seconds)}</span></span>
+                  <span className="text-muted-foreground">Events: <span className="text-[#818cf8]">{sessionDetail.event_count}</span></span>
+                  <span className="text-muted-foreground">{formatTime(sessionDetail.session_start)} → {formatTime(sessionDetail.session_end)}</span>
+                </div>
+                <div className="border-t border-border/40 pt-2 space-y-1 max-h-64 overflow-y-auto">
+                  {sessionDetail.events.map(event => {
+                    const statusClass = STATUS_COLORS[String(event.status_code)[0]] ?? 'bg-secondary text-muted-foreground'
+                    const methodClass = METHOD_COLORS[event.method] ?? 'bg-secondary/40 text-muted-foreground'
+                    return (
+                      <button
+                        key={event.id}
+                        onClick={() => setSelectedEventId(event.id)}
+                        className="w-full text-left flex items-center gap-3 px-2 py-1.5 rounded hover:bg-secondary/40 transition-colors group"
+                      >
+                        <span className="text-xs text-muted-foreground font-mono w-28 shrink-0">
+                          {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded font-mono shrink-0 ${methodClass}`}>{event.method}</span>
+                        <span className="text-xs font-mono text-foreground truncate flex-1">{event.path}</span>
+                        <span className={`text-xs font-mono px-1.5 py-0.5 rounded shrink-0 ${statusClass}`}>{event.status_code}</span>
+                        {event.response_time != null && (
+                          <span className="text-xs text-muted-foreground font-mono w-16 text-right shrink-0">{event.response_time}ms</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* Content */}
       {isLoading ? (

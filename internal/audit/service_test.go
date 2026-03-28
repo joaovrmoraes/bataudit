@@ -12,11 +12,14 @@ import (
 // --- Mock Repository ---
 
 type mockRepository struct {
-	createFn      func(audit *Audit) error
-	listFn        func(limit, offset int, filters ListFilters) (ListResult, error)
-	getByIDFn     func(id string) (*Audit, error)
-	getStatsFn    func(projectID string) (*AuditStats, error)
-	getSessionsFn func(filters SessionFilters) ([]Session, error)
+	createFn           func(audit *Audit) error
+	listFn             func(limit, offset int, filters ListFilters) (ListResult, error)
+	exportFn           func(filters ListFilters, maxRows int) ([]AuditSummary, error)
+	getByIDFn          func(id string) (*Audit, error)
+	getStatsFn         func(projectID string) (*AuditStats, error)
+	getSessionsFn      func(filters SessionFilters) ([]Session, error)
+	getSessionByIDFn   func(sessionID string) (*SessionDetail, error)
+	getOrphansFn       func(filters OrphanFilters) ([]AuditSummary, error)
 }
 
 func (m *mockRepository) Create(audit *Audit) error {
@@ -31,6 +34,13 @@ func (m *mockRepository) List(limit, offset int, filters ListFilters) (ListResul
 		return m.listFn(limit, offset, filters)
 	}
 	return ListResult{}, nil
+}
+
+func (m *mockRepository) Export(filters ListFilters, maxRows int) ([]AuditSummary, error) {
+	if m.exportFn != nil {
+		return m.exportFn(filters, maxRows)
+	}
+	return nil, nil
 }
 
 func (m *mockRepository) GetByID(id string) (*Audit, error) {
@@ -50,6 +60,20 @@ func (m *mockRepository) GetStats(projectID string) (*AuditStats, error) {
 func (m *mockRepository) GetSessions(filters SessionFilters) ([]Session, error) {
 	if m.getSessionsFn != nil {
 		return m.getSessionsFn(filters)
+	}
+	return nil, nil
+}
+
+func (m *mockRepository) GetSessionByID(sessionID string) (*SessionDetail, error) {
+	if m.getSessionByIDFn != nil {
+		return m.getSessionByIDFn(sessionID)
+	}
+	return nil, nil
+}
+
+func (m *mockRepository) GetOrphans(filters OrphanFilters) ([]AuditSummary, error) {
+	if m.getOrphansFn != nil {
+		return m.getOrphansFn(filters)
 	}
 	return nil, nil
 }

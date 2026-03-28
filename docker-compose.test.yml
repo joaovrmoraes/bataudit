@@ -1,0 +1,24 @@
+services:
+  postgres_test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: batuser
+      POSTGRES_PASSWORD: batpassword
+      POSTGRES_DB: batdb_test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U batuser -d batdb_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis_test:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

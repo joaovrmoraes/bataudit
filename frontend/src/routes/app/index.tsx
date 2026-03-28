@@ -5,13 +5,15 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { RefreshCw, AlertCircle, Filter, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { RefreshCw, AlertCircle, Filter, X, ChevronUp, ChevronDown, ShieldAlert, Download, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { useAuditList, useAuditStats } from '@/queries/audit'
+import { useAuditList, useAuditStats, useAnomalyAlerts, useOrphans } from '@/queries/audit'
+import { useAuditHistory } from '@/queries/tiering'
 import { useProject } from '@/lib/project-context'
+import { getToken } from '@/lib/auth'
 import { AppPagination } from '@/components/app-pagination'
 import { EventDetailModal } from './components/event-detail-modal'
 
@@ -96,6 +98,10 @@ function RouteComponent() {
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useAuditStats(selectedProjectId)
   const { data: auditList, isError: auditError, refetch: refetchList } = useAuditList(page, limit, selectedProjectId, activeFilters)
+  const { data: anomalyData } = useAnomalyAlerts(selectedProjectId)
+  const { data: historyData } = useAuditHistory(selectedProjectId)
+  const since24h = React.useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), [])
+  const { data: orphansData } = useOrphans({ projectId: selectedProjectId, start_date: since24h })
 
   function refresh() {
     refetchStats()
@@ -110,7 +116,44 @@ function RouteComponent() {
     navigate({ search: { page: 1 } })
   }
 
-  function toggleSort(col: 'timestamp' | 'status_code' | 'response_time') {
+  const [exporting, setExporting] = React.useState(false)
+
+  async function handleExport(format: 'csv' | 'json') {
+    setExporting(true)
+    try {
+      const base = import.meta.env.VITE_API_URL ?? ''
+      const params = new URLSearchParams()
+      params.set('format', format)
+      if (selectedProjectId) params.set('project_id', selectedProjectId)
+      if (activeFilters.service_name) params.set('service_name', activeFilters.service_name)
+      if (activeFilters.method) params.set('method', activeFilters.method)
+      if (activeFilters.status_code) params.set('status_code', activeFilters.status_code)
+      if (activeFilters.environment) params.set('environment', activeFilters.environment)
+      if (activeFilters.identifier) params.set('identifier', activeFilters.identifier)
+      if (activeFilters.start_date) params.set('start_date', activeFilters.start_date)
+      if (activeFilters.end_date) params.set('end_date', activeFilters.end_date)
+
+      const res = await fetch(`${base}/v1/audit/export?${params}`, {
+        headers: { Authorization: `Bearer ${getToken() ?? ''}` },
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }))
+        alert(body.error ?? 'Export failed')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `bataudit-export-${new Date().toISOString().slice(0, 10)}.${format}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  function toggleFeedSort(col: 'timestamp' | 'status_code' | 'response_time') {
     const currentCol = search.sort_by ?? 'timestamp'
     const currentDir = search.sort_order ?? 'desc'
     const newDir = currentCol === col && currentDir === 'desc' ? 'asc' : 'desc'
@@ -163,6 +206,14 @@ function RouteComponent() {
     count: p.count,
   }))
 
+  const historyChartData = (historyData?.data ?? []).map(p => ({
+    label: p.period_type === 'day'
+      ? new Date(p.period_start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      : new Date(p.period_start).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' }),
+    events: p.event_count,
+    errors: p.errors_4xx + p.errors_5xx,
+  }))
+
   return (
     <div className="container mx-auto p-6 space-y-6">
 
@@ -188,6 +239,7 @@ function RouteComponent() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: 'Total Events', value: statsLoading ? '…' : (stats?.total ?? 0).toLocaleString(), color: '#818cf8' },
+          { label: 'Anomaly Alerts', value: (anomalyData?.pagination.totalItems ?? 0).toString(), color: '#f87171' },
           {
             label: 'Errors 4xx',
             value: statsLoading ? '…' : `${stats?.errors_4xx ?? 0}`,
@@ -211,6 +263,29 @@ function RouteComponent() {
           </Card>
         ))}
       </div>
+
+      {/* Orphan events banner */}
+      {(orphansData?.total ?? 0) > 0 && (
+        <Card className="p-4 border-[#fb923c]/30 bg-[#fb923c]/5 flex items-center gap-3">
+          <Unlink className="h-4 w-4 text-[#fb923c] shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-[#fb923c]">
+              {orphansData!.total} request{orphansData!.total !== 1 ? 's' : ''} without backend response in the last 24h
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Browser-side events with no matching backend audit — possible crashes, timeouts, or OOM kills.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-[#fb923c] hover:text-[#fb923c] border border-[#fb923c]/30 shrink-0"
+            onClick={() => setFilter('event_type', 'browser')}
+          >
+            View orphans
+          </Button>
+        </Card>
+      )}
 
       {/* 6.3 Breakdown by service */}
       {sortedServices.length > 0 && (
@@ -285,6 +360,28 @@ function RouteComponent() {
             </ResponsiveContainer>
           </Card>
 
+          {/* Area chart — 90-day history */}
+          {historyChartData.length > 0 && (
+            <Card className="p-4 border-border/50 bg-card/60 space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Event history (90 days)</p>
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={historyChartData}>
+                  <defs>
+                    <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#64748b' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} width={30} />
+                  <Tooltip contentStyle={{ background: '#1e2130', border: '1px solid #2d3350', fontSize: 12 }} />
+                  <Area type="monotone" dataKey="events" stroke="#34d399" fill="url(#histGrad)" strokeWidth={2} dot={false} name="Events" />
+                  <Area type="monotone" dataKey="errors" stroke="#f87171" fill="none" strokeWidth={1.5} dot={false} name="Errors" strokeDasharray="3 2" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+          )}
+
           {/* Stacked bar — status classes */}
           <Card className="p-4 border-border/50 bg-card/60 space-y-2">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Status distribution</p>
@@ -354,6 +451,26 @@ function RouteComponent() {
                 Filter
                 {hasFilters && <span className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />}
               </Button>
+              <div className="relative group">
+                <Button variant="outline" size="sm" className="gap-2" disabled={exporting}>
+                  <Download className="h-3.5 w-3.5" />
+                  {exporting ? 'Exporting…' : 'Export'}
+                </Button>
+                <div className="absolute right-0 top-full mt-1 hidden group-hover:flex flex-col z-10 bg-card border border-border rounded-md shadow-lg overflow-hidden min-w-[100px]">
+                  <button
+                    className="px-3 py-2 text-xs text-left hover:bg-sidebar-accent transition-colors"
+                    onClick={() => handleExport('csv')}
+                  >
+                    CSV
+                  </button>
+                  <button
+                    className="px-3 py-2 text-xs text-left hover:bg-sidebar-accent transition-colors"
+                    onClick={() => handleExport('json')}
+                  >
+                    JSON
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -410,7 +527,7 @@ function RouteComponent() {
                   return (
                     <button
                       key={col}
-                      onClick={() => toggleSort(col)}
+                      onClick={() => toggleFeedSort(col)}
                       className={`flex items-center gap-0.5 hover:text-foreground transition-colors ${isActive ? 'text-foreground' : ''} ${col === 'timestamp' ? 'w-16 shrink-0' : col === 'status_code' ? 'shrink-0' : 'w-14 text-right shrink-0 ml-auto'}`}
                     >
                       {labels[col]}
@@ -435,15 +552,24 @@ function RouteComponent() {
                       {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <span className="text-xs text-muted-foreground w-20 shrink-0 truncate">{event.service_name}</span>
-                    <Badge variant="outline" className={`text-xs font-mono shrink-0 ${methodColor(event.method)}`}>
-                      {event.method}
-                    </Badge>
+                    {event.event_type === 'system.alert' ? (
+                      <Badge className="text-xs font-mono shrink-0 bg-[#f87171]/20 text-[#f87171] border-[#f87171]/30 gap-1">
+                        <ShieldAlert className="h-3 w-3" />
+                        ALERT
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className={`text-xs font-mono shrink-0 ${methodColor(event.method)}`}>
+                        {event.method}
+                      </Badge>
+                    )}
                     <span className="text-xs text-foreground font-mono flex-1 truncate">{event.path}</span>
-                    <Badge variant="outline" className={`text-xs font-mono shrink-0 ${statusColor(event.status_code)}`}>
-                      {event.status_code}
-                    </Badge>
+                    {event.event_type !== 'system.alert' && (
+                      <Badge variant="outline" className={`text-xs font-mono shrink-0 ${statusColor(event.status_code)}`}>
+                        {event.status_code}
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted-foreground w-14 text-right shrink-0">
-                      {event.response_time}ms
+                      {event.response_time ? `${event.response_time}ms` : '—'}
                     </span>
                   </div>
                 ))}

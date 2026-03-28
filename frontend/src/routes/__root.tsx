@@ -9,9 +9,7 @@ export const Route = createRootRoute({
     <>
       <QueryClientProvider client={queryClient}>
         <ProjectProvider>
-          <div className="min-h-screen bg-gradient-dark">
-            <Outlet />
-          </div>
+          <Outlet />
         </ProjectProvider>
       </QueryClientProvider>
       <TanStackRouterDevtools />

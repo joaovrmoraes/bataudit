@@ -1,8 +1,9 @@
 import type { UUID } from 'node:crypto'
 import { authHeader } from '@/lib/auth'
 
-interface Audit {
-  id: UUID
+export interface AuditSummary {
+  id: string
+  event_type: string
   identifier: string
   user_email: string
   user_name: string
@@ -11,7 +12,12 @@ interface Audit {
   status_code: number
   service_name: string
   timestamp: string
+  response_time: number
+  project_id?: string
 }
+
+// Keep the internal alias for backward compatibility within this file.
+type Audit = AuditSummary & { id: UUID }
 
 interface ListAuditResponse {
   data: Audit[]
@@ -36,6 +42,7 @@ interface ListAuditParams {
   end_date?: string
   sort_by?: string
   sort_order?: string
+  event_type?: string
 }
 
 export async function ListAudit(
@@ -54,6 +61,7 @@ export async function ListAudit(
   if (params?.end_date) search.set('end_date', params.end_date)
   if (params?.sort_by) search.set('sort_by', params.sort_by)
   if (params?.sort_order) search.set('sort_order', params.sort_order)
+  if (params?.event_type) search.set('event_type', params.event_type)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
   const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/audit${query}`, {

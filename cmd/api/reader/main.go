@@ -21,12 +21,15 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joaovrmoraes/bataudit/internal/anomaly"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
 	"github.com/joaovrmoraes/bataudit/internal/auth"
 	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
 	_ "github.com/joaovrmoraes/bataudit/docs"
 	"github.com/joaovrmoraes/bataudit/internal/health"
+	"github.com/joaovrmoraes/bataudit/internal/notification"
+	"github.com/joaovrmoraes/bataudit/internal/tiering"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
@@ -105,6 +108,36 @@ func main() {
 	repository := audit.NewRepository(conn)
 	handler := audit.NewHandler(repository)
 	handler.RegisterReadRoutes(auditGroup)
+
+	// Anomaly detection routes
+	anomalyGroup := v1.Group("/anomaly")
+	anomalyGroup.Use(authService.JWTMiddleware())
+	anomalyRepo := anomaly.NewRepository(conn)
+	anomalyHandler := anomaly.NewHandler(anomalyRepo)
+	anomalyHandler.RegisterRoutes(anomalyGroup)
+
+	// Tiering / history routes
+	tieringRepo := tiering.NewRepository(conn)
+	tieringHandler := tiering.NewHandler(tieringRepo)
+	tieringGroup := v1.Group("/audit/stats")
+	tieringGroup.Use(authService.JWTMiddleware())
+	tieringHandler.RegisterRoutes(tieringGroup)
+
+	// Notification routes
+	vapidPub := config.GetEnv("VAPID_PUBLIC_KEY", "")
+	if vapidPub == "" {
+		pub, priv, err := notification.GenerateVAPIDKeys()
+		if err == nil {
+			vapidPub = pub
+			slog.Warn("VAPID keys not configured — generated ephemeral keys (do not use in production)",
+				"VAPID_PUBLIC_KEY", pub, "VAPID_PRIVATE_KEY", priv)
+		}
+	}
+	notifRepo := notification.NewRepository(conn)
+	notifHandler := notification.NewHandler(notifRepo, vapidPub)
+	notifGroup := v1.Group("/notifications")
+	notifGroup.Use(authService.JWTMiddleware())
+	notifHandler.RegisterRoutes(notifGroup)
 
 	healthHandler := health.NewHealthHandler(conn, "1.0.0", "development")
 	healthHandler.RegisterRoutes(r.Group(""))

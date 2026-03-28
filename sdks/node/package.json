@@ -1,0 +1,30 @@
+{
+  "name": "@bataudit/node",
+  "version": "0.1.0",
+  "description": "Official Node.js SDK for BatAudit",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "engines": { "node": ">=18.0.0" },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.0.0",
+    "express": "^4.19.2",
+    "fastify": "^4.28.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0",
+    "fastify": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": { "optional": true },
+    "fastify": { "optional": true }
+  }
+}

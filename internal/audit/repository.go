@@ -18,6 +18,7 @@ type ListFilters struct {
 	Method      string
 	StatusCode  int
 	Environment string
+	EventType   string // http | system.alert
 	StartDate   *time.Time
 	EndDate     *time.Time
 	SortBy      string // timestamp | status_code | response_time
@@ -27,9 +28,12 @@ type ListFilters struct {
 type Repository interface {
 	Create(audit *Audit) error
 	List(limit, offset int, filters ListFilters) (ListResult, error)
+	Export(filters ListFilters, maxRows int) ([]AuditSummary, error)
 	GetByID(id string) (*Audit, error)
 	GetStats(projectID string) (*AuditStats, error)
 	GetSessions(filters SessionFilters) ([]Session, error)
+	GetSessionByID(sessionID string) (*SessionDetail, error)
+	GetOrphans(filters OrphanFilters) ([]AuditSummary, error)
 }
 
 type repository struct {
@@ -68,6 +72,9 @@ func (r *repository) List(limit, offset int, filters ListFilters) (ListResult, e
 	if filters.Environment != "" {
 		query = query.Where("environment = ?", filters.Environment)
 	}
+	if filters.EventType != "" {
+		query = query.Where("event_type = ?", filters.EventType)
+	}
 	if filters.StartDate != nil {
 		query = query.Where("timestamp >= ?", filters.StartDate)
 	}
@@ -90,7 +97,7 @@ func (r *repository) List(limit, offset int, filters ListFilters) (ListResult, e
 	}
 
 	err := query.
-		Select("id, identifier, user_email, user_name, method, path, status_code, service_name, timestamp, response_time").
+		Select("id, event_type, identifier, user_email, user_name, method, path, status_code, service_name, timestamp, response_time").
 		Order(sortCol + " " + sortOrder).
 		Limit(limit).
 		Offset(offset).
@@ -103,6 +110,47 @@ func (r *repository) List(limit, offset int, filters ListFilters) (ListResult, e
 		Data:       audits,
 		TotalItems: totalItems,
 	}, nil
+}
+
+func (r *repository) Export(filters ListFilters, maxRows int) ([]AuditSummary, error) {
+	var audits []AuditSummary
+
+	query := r.db.Model(&Audit{})
+
+	if filters.ProjectID != "" {
+		query = query.Where("project_id = ?", filters.ProjectID)
+	}
+	if filters.ServiceName != "" {
+		query = query.Where("service_name = ?", filters.ServiceName)
+	}
+	if filters.Identifier != "" {
+		query = query.Where("identifier = ?", filters.Identifier)
+	}
+	if filters.Method != "" {
+		query = query.Where("method = ?", filters.Method)
+	}
+	if filters.StatusCode != 0 {
+		query = query.Where("status_code = ?", filters.StatusCode)
+	}
+	if filters.Environment != "" {
+		query = query.Where("environment = ?", filters.Environment)
+	}
+	if filters.EventType != "" {
+		query = query.Where("event_type = ?", filters.EventType)
+	}
+	if filters.StartDate != nil {
+		query = query.Where("timestamp >= ?", filters.StartDate)
+	}
+	if filters.EndDate != nil {
+		query = query.Where("timestamp <= ?", filters.EndDate)
+	}
+
+	err := query.
+		Select("id, event_type, identifier, user_email, user_name, method, path, status_code, service_name, timestamp, response_time").
+		Order("timestamp desc").
+		Limit(maxRows).
+		Find(&audits).Error
+	return audits, err
 }
 
 func (r *repository) GetByID(id string) (*Audit, error) {
@@ -188,6 +236,53 @@ func (r *repository) GetSessions(filters SessionFilters) ([]Session, error) {
 		return nil, err
 	}
 	return sessions, nil
+}
+
+func (r *repository) GetSessionByID(sessionID string) (*SessionDetail, error) {
+	var events []AuditSummary
+	err := r.db.Model(&Audit{}).
+		Where("session_id = ?", sessionID).
+		Select("id, event_type, identifier, user_email, user_name, method, path, status_code, service_name, timestamp, response_time").
+		Order("timestamp ASC").
+		Find(&events).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(events) == 0 {
+		return nil, nil
+	}
+
+	var meta struct {
+		Identifier      string
+		ServiceName     string
+		SessionStart    string
+		SessionEnd      string
+		DurationSeconds float64
+		EventCount      int64
+	}
+	r.db.Model(&Audit{}).
+		Where("session_id = ?", sessionID).
+		Select(`
+			identifier,
+			service_name,
+			TO_CHAR(MIN(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS session_start,
+			TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS session_end,
+			EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) AS duration_seconds,
+			COUNT(*) AS event_count
+		`).
+		Group("identifier, service_name").
+		Scan(&meta)
+
+	return &SessionDetail{
+		SessionID:       sessionID,
+		Identifier:      meta.Identifier,
+		ServiceName:     meta.ServiceName,
+		SessionStart:    meta.SessionStart,
+		SessionEnd:      meta.SessionEnd,
+		DurationSeconds: meta.DurationSeconds,
+		EventCount:      meta.EventCount,
+		Events:          events,
+	}, nil
 }
 
 func (r *repository) GetStats(projectID string) (*AuditStats, error) {
@@ -306,4 +401,33 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 	}
 
 	return stats, nil
+}
+
+func (r *repository) GetOrphans(filters OrphanFilters) ([]AuditSummary, error) {
+	query := r.db.Model(&Audit{}).
+		Where("source = ?", "browser").
+		Where("request_id != ''").
+		Where("NOT EXISTS (SELECT 1 FROM audits a WHERE a.source = 'backend' AND a.request_id = audits.request_id AND a.request_id != '')")
+
+	if filters.ProjectID != "" {
+		query = query.Where("project_id = ?", filters.ProjectID)
+	}
+	if filters.ServiceName != "" {
+		query = query.Where("service_name = ?", filters.ServiceName)
+	}
+	if filters.StartDate != nil {
+		query = query.Where("timestamp >= ?", filters.StartDate)
+	}
+	if filters.EndDate != nil {
+		query = query.Where("timestamp <= ?", filters.EndDate)
+	}
+
+	var orphans []AuditSummary
+	err := query.
+		Select("id, event_type, identifier, user_email, user_name, method, path, status_code, service_name, timestamp, response_time").
+		Order("timestamp DESC").
+		Limit(100).
+		Find(&orphans).Error
+
+	return orphans, err
 }

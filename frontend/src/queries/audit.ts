@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { ListAudit } from '@/http/audit/list'
 import { getAuditStats } from '@/http/audit/stats'
 import { getAuditDetail } from '@/http/audit/details'
-import { getSessions, type SessionFilters } from '@/http/audit/sessions'
+import { getSessions, getSessionByID, type SessionFilters } from '@/http/audit/sessions'
+import { getOrphans, type OrphanFilters } from '@/http/audit/orphans'
 import type { Session } from '@/http/audit/sessions'
 
-export function useAuditList(page: number, limit: number, projectId?: string | null, filters?: Record<string, string>) {
+export function useAuditList(page: number, limit: number, projectId?: string | null, filters?: Record<string, string | undefined>) {
   return useQuery({
     queryKey: ['audit', page, projectId, filters],
     queryFn: () => ListAudit({ page, limit, projectId: projectId ?? undefined, ...filters }),
@@ -33,6 +34,36 @@ export function useAuditDetail(id: string | null) {
     queryKey: ['audit-detail', id],
     queryFn: () => getAuditDetail(id!),
     enabled: !!id,
+  })
+}
+
+export function useAnomalyAlerts(projectId?: string | null) {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  return useQuery({
+    queryKey: ['anomaly-alerts', projectId, since],
+    queryFn: () => ListAudit({
+      event_type: 'system.alert',
+      projectId: projectId ?? undefined,
+      start_date: since,
+      limit: 100,
+    }),
+    refetchInterval: 60_000,
+  })
+}
+
+export function useOrphans(filters?: OrphanFilters) {
+  return useQuery({
+    queryKey: ['audit-orphans', filters],
+    queryFn: () => getOrphans(filters),
+    refetchInterval: 60_000,
+  })
+}
+
+export function useSessionByID(sessionID: string | null) {
+  return useQuery({
+    queryKey: ['session-by-id', sessionID],
+    queryFn: () => getSessionByID(sessionID!),
+    enabled: !!sessionID,
   })
 }
 

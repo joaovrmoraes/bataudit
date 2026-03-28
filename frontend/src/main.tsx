@@ -3,6 +3,10 @@ import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
 
+// Sync theme before first render to avoid FOUC
+const _theme = localStorage.getItem('bataudit-theme') ?? 'dark'
+document.documentElement.classList.add(_theme)
+
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({ routeTree })

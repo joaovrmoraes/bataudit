@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/joaovrmoraes/bataudit/internal/anomaly"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
 	"github.com/joaovrmoraes/bataudit/internal/queue"
 )
@@ -15,6 +16,7 @@ import (
 type Service struct {
 	config     *Config
 	auditSvc   *audit.Service
+	detector   *anomaly.Detector // nil = anomaly detection disabled
 	redisQueue *queue.RedisQueue
 
 	// Worker management
@@ -41,6 +43,12 @@ func NewService(config *Config, auditSvc *audit.Service, redisQueue *queue.Redis
 		workerChannels: make(map[int]chan bool),
 		lastScaleTime:  time.Now(),
 	}
+}
+
+// WithDetector attaches an anomaly detector to the service.
+func (s *Service) WithDetector(d *anomaly.Detector) *Service {
+	s.detector = d
+	return s
 }
 
 // Start starts the workers and waits until the context is canceled
@@ -183,6 +191,17 @@ func (s *Service) processWithRetry(id int, auditEvent audit.Audit) bool {
 		err := s.auditSvc.CreateAudit(auditEvent)
 		if err == nil {
 			slog.Info("Event processed", "worker_id", id, "event_id", auditEvent.ID)
+			if s.detector != nil && auditEvent.EventType != "system.alert" {
+				s.detector.ProcessEvent(anomaly.Event{
+					ProjectID:   auditEvent.ProjectID,
+					ServiceName: auditEvent.ServiceName,
+					Environment: auditEvent.Environment,
+					Timestamp:   auditEvent.Timestamp,
+					StatusCode:  auditEvent.StatusCode,
+					Method:      string(auditEvent.Method),
+					Identifier:  auditEvent.Identifier,
+				})
+			}
 			return true
 		}
 		slog.Warn("Processing attempt failed", "worker_id", id, "attempt", attempt+1, "error", err)

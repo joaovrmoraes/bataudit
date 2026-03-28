@@ -24,8 +24,9 @@ type Claims struct {
 }
 
 type Service struct {
-	repo      Repository
-	jwtSecret []byte
+	repo             Repository
+	jwtSecret        []byte
+	OnProjectCreated func(projectID string) // called (async) when a new project is auto-created
 }
 
 func NewService(repo Repository, jwtSecret string) *Service {
@@ -169,6 +170,11 @@ func (s *Service) EnsureProject(serviceName, apiKeyID string) (string, error) {
 		if keyErr == nil && key.ProjectID == "" {
 			_ = s.repo.UpdateAPIKeyProject(apiKeyID, newProject.ID)
 		}
+	}
+
+	// Notify listeners (e.g. anomaly rule seeding) asynchronously.
+	if s.OnProjectCreated != nil {
+		go s.OnProjectCreated(newProject.ID)
 	}
 
 	return newProject.ID, nil

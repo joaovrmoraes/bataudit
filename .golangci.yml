@@ -1,0 +1,26 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosimple
+    - noctx
+    - bodyclose
+
+linters-settings:
+  errcheck:
+    # Allow ignoring errors from defer Close() calls
+    exclude-functions:
+      - (io.Closer).Close
+      - (*database/sql.Rows).Close
+
+issues:
+  exclude-rules:
+    # Test files may have unexported function assertions
+    - path: _test\.go
+      linters:
+        - errcheck

@@ -237,37 +237,38 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 
 ### 7.1 Funcionalidades core
 
-- [ ] Publicar pacote `@bataudit/node` no npm
-- [ ] Configuração mínima: `apiKey` + `serviceName` + `writerUrl`
-- [ ] Middleware para **Express** — `app.use(bataudit.middleware())`
-- [ ] Middleware para **Fastify** — `app.addHook('onResponse', ...)`
-- [ ] Captura automática: `method`, `path`, `status_code`, `response_time`, `ip`, `user_agent`
-- [ ] Passagem opcional de dados do usuário: `identifier`, `user_email`, `user_name`, `user_roles`
-- [ ] Envio assíncrono e não-bloqueante (não impacta latência da aplicação)
-- [ ] Retry automático em caso de falha no envio
+- [x] Publicar pacote `@bataudit/node` no npm
+- [x] Configuração mínima: `apiKey` + `serviceName` + `writerUrl`
+- [x] Middleware para **Express** — `app.use(createExpressMiddleware(config))`
+- [x] Plugin para **Fastify** — `applyBatAuditPlugin(app, config)`
+- [x] Captura automática: `method`, `path`, `status_code`, `response_time`, `ip`, `user_agent`
+- [x] Passagem opcional de dados do usuário: `identifier`, `user_email`, `user_name`, `user_roles`
+- [x] Envio assíncrono e não-bloqueante (não impacta latência da aplicação)
+- [x] Retry automático em caso de falha no envio
 
 ### 7.2 Modo serverless (Lambda / funções efêmeras)
 
 > Em Lambda, o processo pode ser hard-killed antes do middleware enviar o evento. O modo `wrap` garante o flush antes do encerramento.
 
-- [ ] Método `bataudit.wrap(handler)` para Lambda — garante envio via `try/finally`
-- [ ] Flush forçado antes do processo encerrar
+- [x] Método `createLambdaWrapper(config)` — retorna `wrap(handler, getAuditData?)` com flush via `try/finally`
+- [x] Flush forçado antes do processo encerrar
 - [ ] Documentar limitação: hard-kill por OOM ou timeout da plataforma não pode ser capturado pelo backend
 
-```js
+```ts
 // Lambda
-export const handler = (event) => {
-  return bataudit.wrap(async () => {
-    // sua lógica aqui
-  })
-}
+const wrap = createLambdaWrapper({ apiKey: '...', serviceName: 'my-fn', writerUrl: '...' })
+
+export const handler = wrap(
+  async (event) => { /* sua lógica */ },
+  (event, result, error) => ({ identifier: event.userId, path: '/my-fn' })
+)
 ```
 
 ### 7.3 Geração do request_id
 
-- [ ] SDK gera automaticamente um `request_id` único por requisição (formato `bat-xxxx`)
-- [ ] Se o header `X-Request-ID` já vier na requisição, usa o valor existente
-- [ ] Injeta o `request_id` no header de resposta para o cliente poder correlacionar
+- [x] SDK gera automaticamente um `request_id` único por requisição (formato `bat-<uuid>`)
+- [x] Se o header `X-Request-ID` já vier na requisição, usa o valor existente
+- [x] Injeta o `request_id` no header de resposta para o cliente poder correlacionar
 
 ---
 
@@ -279,21 +280,23 @@ export const handler = (event) => {
 
 ### 8.1 Funcionalidades core
 
-- [ ] Publicar pacote `@bataudit/browser` no npm
-- [ ] Interceptar `fetch` e `XMLHttpRequest` automaticamente
-- [ ] Gerar `request_id` antes de cada requisição e injetar no header `X-Request-ID`
-- [ ] Capturar: `method`, `url`, `status_code`, `response_time`, `request_id`
-- [ ] Enviar evento ao BatAudit com `source: "browser"`
-- [ ] Configuração mínima: `apiKey` + `serviceName` + `writerUrl`
+- [x] Publicar pacote `@bataudit/browser` no npm
+- [x] Interceptar `fetch` e `XMLHttpRequest` automaticamente
+- [x] Gerar `request_id` antes de cada requisição e injetar no header `X-Request-ID`
+- [x] Capturar: `method`, `url`, `status_code`, `response_time`, `request_id`
+- [x] Enviar evento ao BatAudit com `source: "browser"`
+- [x] Configuração mínima: `apiKey` + `serviceName` + `writerUrl`
+- [x] `setUser()` / `clearUser()` para contexto de usuário persistente entre requisições
+- [x] `unpatch()` para restaurar fetch e XHR originais
 
 ### 8.2 Correlação frontend-backend
 
 > Permite detectar requisições que o backend não conseguiu auditar — crashes totais, Lambda timeout, OOM.
 
-- [ ] Adicionar campo `source` ao modelo `Audit` (`backend` | `browser`)
-- [ ] Criar migration para a coluna `source`
-- [ ] No BatAudit, cruzar eventos por `request_id`: se existe evento browser mas **não existe** evento backend → sinalizar como **requisição órfã**
-- [ ] Endpoint `GET /audit/orphans` — lista eventos sem correspondência backend
+- [x] Adicionar campo `source` ao modelo `Audit` (`backend` | `browser`)
+- [x] Migration `000004_add_source_to_audits` para coluna `source`
+- [x] Writer define `source = "backend"` automaticamente se não vier no payload
+- [x] Endpoint `GET /v1/audit/orphans` — lista eventos browser sem correspondência backend
 - [ ] Exibir no dashboard com destaque: "X requisições sem resposta do backend nos últimos 24h"
 
 ```
@@ -387,28 +390,28 @@ Orange:      #fb923c   (warning / 4xx)
 
 ### 10.1 Design tokens
 
-- [ ] Definir paleta de cores para dark e light mode baseada nas referências
-- [ ] Atualizar variáveis CSS em `index.css` com os novos tokens
-- [ ] Atualizar `tailwind.config` com as cores, tipografia e espaçamentos do novo estilo
+- [x] Definir paleta de cores para dark e light mode baseada nas referências
+- [x] Atualizar variáveis CSS em `index.css` com os novos tokens
+- [x] Atualizar `tailwind.config` com as cores, tipografia e espaçamentos do novo estilo
 
 ### 10.2 Componentes base (shadcn/ui)
 
-- [ ] Revisar e customizar os componentes shadcn já existentes para o novo estilo
-- [ ] Garantir que todos os componentes funcionam corretamente em dark e light mode
-- [ ] Implementar toggle de dark/light mode no header com persistência (localStorage)
+- [x] Revisar e customizar os componentes shadcn já existentes para o novo estilo
+- [x] Garantir que todos os componentes funcionam corretamente em dark e light mode
+- [x] Implementar toggle de dark/light mode no header com persistência (localStorage)
 
 ### 10.3 Layout e navegação
 
-- [ ] Redesenhar o layout geral — sidebar, header, área de conteúdo
-- [ ] Redesenhar o header com seletor de projeto e menu de usuário
-- [ ] Redesenhar a sidebar com navegação entre seções (dashboard, eventos, sessões, configurações)
+- [x] Redesenhar o layout geral — sidebar, header, área de conteúdo
+- [x] Redesenhar o header com seletor de projeto e menu de usuário
+- [x] Redesenhar a sidebar com navegação entre seções (dashboard, eventos, sessões, configurações)
 
 ### 10.4 Páginas
 
-- [ ] Redesenhar o dashboard principal (métricas, gráficos, event feed)
-- [ ] Redesenhar a página de login e setup inicial
-- [ ] Redesenhar a página de configurações (usuários, API Keys, projetos)
-- [ ] Redesenhar a página de sessões
+- [x] Redesenhar o dashboard principal (métricas, gráficos, event feed)
+- [x] Redesenhar a página de login e setup inicial
+- [x] Redesenhar a página de configurações (usuários, API Keys, projetos)
+- [x] Redesenhar a página de sessões
 
 ---
 
@@ -455,25 +458,171 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 
 ---
 
+## Fase 13 — Anomaly Detection
+
+**Objetivo:** Detectar padrões anormais nos eventos de auditoria de forma proativa, sem depender de I.A. ou modelos externos — apenas análise estatística no Worker.
+
+**Contexto:** Transforma o BatAudit de ferramenta reativa (consulta de logs) para proativa (detecção em tempo real). Quando uma anomalia é detectada, um evento do tipo `system.alert` é gerado e entra no próprio feed de auditoria.
+
+### 13.1 Modelo de dados
+
+- [x] Adicionar tipo de evento reservado `system.alert` ao modelo `Audit`
+- [x] Criar tabela `anomaly_rules` (id, project_id, rule_type, threshold, window_seconds, active, created_at)
+- [x] Criar migration para as tabelas acima
+
+### 13.2 Engine de detecção (Worker)
+
+> Análise estatística por janela de tempo (sliding window). Zero dependência externa.
+
+- [x] Implementar sliding window por projeto — contador de eventos nos últimos N segundos
+- [x] Detectar **pico de volume**: eventos por minuto > média + 3σ da última hora
+- [x] Detectar **pico de erros**: taxa de 4xx/5xx > threshold configurável (ex: > 10% em 5 min)
+- [x] Detectar **brute force**: mesmo `identifier` ou IP com > N falhas de autenticação em janela curta
+- [x] Detectar **serviço silencioso**: projeto que normalmente gera eventos para de enviar por > X minutos
+- [x] Detectar **deleção em massa**: > N eventos do tipo `*.delete` em janela curta
+- [x] Ao detectar anomalia, gravar evento `system.alert` com `metadata` descrevendo o motivo
+
+### 13.3 Configuração por projeto
+
+- [x] Endpoint `GET /v1/anomaly/rules` — listar regras ativas do projeto
+- [x] Endpoint `POST /v1/anomaly/rules` — criar/atualizar regra (threshold, janela, tipo)
+- [x] Endpoint `DELETE /v1/anomaly/rules/:id` — desativar regra
+- [x] Regras padrão criadas automaticamente ao criar um projeto
+
+### 13.4 Dashboard
+
+- [x] Card de anomalias no dashboard principal — contagem de alertas nas últimas 24h
+- [x] Badge visual nos eventos do tipo `system.alert` no event feed (cor: vermelho/laranja)
+- [x] Página de anomalias — lista de alertas com filtro por tipo e período
+
+---
+
+## Fase 14 — Notificações
+
+**Objetivo:** Notificar proativamente quando anomalias são detectadas, sem depender de serviço externo ou configuração complexa.
+
+**Contexto:** Apenas dois canais — Push Web (nativo do browser, zero config) e Webhook genérico (o usuário conecta onde quiser: Discord, Slack, Teams, n8n, Zapier, PagerDuty).
+
+**Dependência:** Fase 13 (Anomaly Detection) deve estar concluída — as notificações são disparadas pelos eventos `system.alert`.
+
+### 14.1 Modelo de dados
+
+- [x] Criar tabela `notification_channels` (id, project_id, type `push|webhook`, config JSON, active, created_at)
+- [x] Criar migration para a tabela acima
+
+### 14.2 Push Web (browser notifications)
+
+> Nativo do browser — funciona mesmo com a aba em background. Zero dependência externa.
+
+- [x] Implementar Web Push API no frontend (service worker + `PushManager`)
+- [x] Endpoint `POST /v1/notifications/push/subscribe` — salva subscription do browser
+- [x] Endpoint `DELETE /v1/notifications/push/subscribe` — remove subscription
+- [x] Worker envia push notification quando gera evento `system.alert`
+- [x] Payload da notificação: tipo do alerta, projeto, timestamp, link direto para o evento
+- [x] UI no dashboard: botão "Ativar notificações" com estado (ativo/inativo)
+
+### 14.3 Webhook genérico
+
+> O usuário configura uma URL e o BatAudit faz POST. Discord, Slack, Teams, n8n, Zapier — qualquer um.
+
+- [x] Endpoint `POST /v1/notifications/webhooks` — cadastrar webhook (url, secret opcional para HMAC)
+- [x] Endpoint `GET /v1/notifications/webhooks` — listar webhooks do projeto
+- [x] Endpoint `DELETE /v1/notifications/webhooks/:id` — remover webhook
+- [x] Worker faz POST na URL configurada quando gera evento `system.alert`
+- [x] Payload padrão JSON: `{ event_type, project, message, timestamp, details }`
+- [x] Assinatura HMAC-SHA256 no header `X-BatAudit-Signature` (opcional, se secret configurado)
+- [x] Retry automático em caso de falha (3 tentativas com backoff)
+- [x] Registrar histórico de entregas (sucesso/falha) na tabela `notification_deliveries`
+
+### 14.4 Configuração no dashboard
+
+- [x] Página de notificações em configurações do projeto
+- [x] Seção Push Web: toggle ativar/desativar com status do browser
+- [x] Seção Webhooks: listagem, formulário de cadastro, botão "Testar" (dispara payload de teste)
+- [x] Histórico de entregas por webhook (últimas 50 entregas com status HTTP)
+
+---
+
+## Fase 15 — Export de Dados
+
+**Objetivo:** Permitir que o usuário exporte eventos de auditoria para uso externo — relatórios de compliance, análise em ferramentas terceiras, backup manual.
+
+**Contexto:** Feature simples de alto valor. O usuário filtra um período/serviço no dashboard e baixa o resultado. Sem configuração extra.
+
+### 15.1 Backend
+
+- [x] Endpoint `GET /v1/audit/export?format=csv&start_date=...&end_date=...` — aceita os mesmos filtros da listagem
+- [x] Suporte a formato `csv` e `json`
+- [x] Header `Content-Disposition: attachment; filename="bataudit-export-{date}.csv"`
+- [x] Limitar export a no máximo 100.000 eventos por requisição (proteção de memória)
+- [x] Para volumes maiores, retornar erro orientando a usar janelas de período menores
+
+### 15.2 Frontend
+
+- [x] Botão "Exportar" no event feed (ao lado dos filtros existentes)
+- [x] Dropdown de formato: CSV / JSON
+- [x] Exporta com os filtros ativos no momento — o que o usuário está vendo é o que será exportado
+- [x] Feedback visual durante o download (loading state no botão)
+
+---
+
+## Fase 16 — Data Tiering (Retenção Inteligente)
+
+**Objetivo:** Auditoria infinita sem crescimento ilimitado do banco — dados antigos são agregados em vez de deletados, mantendo o histórico estatístico para sempre.
+
+**Contexto:** Cereja do bolo do BatAudit. Diferencial real frente a ferramentas que ou deletam ou deixam crescer. Especialmente valioso para compliance, onde o histórico importa mas o custo de infra também.
+
+### 16.1 Modelo de dados
+
+- [x] Criar tabela `audit_summaries` (period_start, period_type `hour|day`, project_id, service_name, status_2xx, status_3xx, status_4xx, status_5xx, avg_ms, p95_ms, event_count)
+- [x] Criar migration para a tabela acima
+
+### 16.2 Job de agregação (Worker)
+
+> Job noturno que agrega eventos antigos e libera espaço no banco sem perder o histórico.
+
+- [x] Implementar job agendado no Worker (configurável via env var `TIERING_SCHEDULE`, padrão: diário às 02h)
+- [x] Agregar eventos com mais de `TIERING_RAW_DAYS` dias (padrão: 30) por `hora + projeto + serviço`
+- [x] Gravar resultado em `audit_summaries` com `period_type = hour`
+- [x] Agregar resumos com mais de `TIERING_HOURLY_DAYS` dias (padrão: 365) por `dia + projeto + serviço`
+- [x] Gravar resultado em `audit_summaries` com `period_type = day`
+- [x] Deletar eventos crus e resumos horários após agregação bem-sucedida
+- [x] Logar volume de eventos processados e espaço liberado a cada execução
+
+### 16.3 API
+
+- [x] Endpoint `GET /v1/audit/stats/history` — retorna séries temporais mesclando dados crus + `audit_summaries`
+- [x] Dashboard sabe automaticamente de qual fonte buscar dependendo do período selecionado
+
+### 16.4 Configuração no frontend
+
+- [x] Página de configurações do projeto — seção "Retenção de Dados"
+- [x] Campo: *Manter eventos detalhados por* `[30]` dias
+- [x] Campo: *Manter resumos horários por* `[365]` dias
+- [x] Campo: *Manter resumos diários* `[para sempre]`
+- [x] Indicador de uso: tamanho estimado dos dados do projeto no banco
+
+---
+
 ## Fase 12 — CI/CD
 
 **Objetivo:** Automatizar build, testes e deploy para garantir qualidade contínua e facilitar contribuições externas.
 
 ### 12.1 Pipeline de validação (em todo PR e push)
 
-- [ ] Criar workflow `.github/workflows/ci.yml`
-- [ ] Rodar `go vet ./...` e `golangci-lint` no backend
-- [ ] Rodar testes unitários (`go test ./...`)
+- [x] Criar workflow `.github/workflows/ci.yml`
+- [x] Rodar `go vet ./...` e `golangci-lint` no backend
+- [x] Rodar testes unitários (`go test ./...`)
 - [ ] Rodar testes de integração via `docker-compose.test.yml`
-- [ ] Rodar lint e typecheck no frontend (`eslint`, `tsc --noEmit`)
-- [ ] Bloquear merge se qualquer etapa falhar
+- [x] Rodar lint e typecheck no frontend (`eslint`, `tsc --noEmit`)
+- [x] Bloquear merge se qualquer etapa falhar
 
 ### 12.2 Build e publicação de imagens Docker
 
-- [ ] Criar workflow `.github/workflows/release.yml` disparado em tags (`v*`)
-- [ ] Build das imagens `writer`, `reader` e `worker`
-- [ ] Push para GitHub Container Registry (`ghcr.io/bataudit/*`)
-- [ ] Taggear imagens com versão semântica e `latest`
+- [x] Criar workflow `.github/workflows/release.yml` disparado em tags (`v*`)
+- [x] Build das imagens `writer`, `reader` e `worker`
+- [x] Push para GitHub Container Registry (`ghcr.io/bataudit/*`)
+- [x] Taggear imagens com versão semântica e `latest`
 
 ### 12.3 Deploy automático em staging
 
@@ -484,8 +633,8 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 
 ### 12.4 Versionamento semântico
 
-- [ ] Adotar [Conventional Commits](https://www.conventionalcommits.org/) como padrão
-- [ ] Criar workflow que gera `CHANGELOG.md` e tag de versão automaticamente via `release-please` ou `semantic-release`
+- [x] Adotar [Conventional Commits](https://www.conventionalcommits.org/) como padrão
+- [x] Criar workflow que gera `CHANGELOG.md` e tag de versão automaticamente via `release-please` ou `semantic-release`
 
 ---
 
@@ -510,10 +659,60 @@ Bugs identificados na revisão de código pós-implementação.
 
 ---
 
+## Fase 17 — Demo: Landing Page
+
+**Objetivo:** Página pública estática apresentando o BatAudit — o que é, features principais, como instalar, link para o demo online.
+
+**Contexto:** Porta de entrada do projeto para quem chega pelo GitHub ou direto pela URL. Deve ser simples, rápida de carregar e comunicar o valor em segundos.
+
+- [x] Página estática (HTML/CSS ou Next.js estático) hospedada via GitHub Pages ou Vercel
+- [x] Seções: hero (tagline + CTA), features (cards), instalação (código), link para demo online
+- [x] Design consistente com a paleta do dashboard (dark mode por padrão)
+- [x] Badge "self-hosted" + "open source" no hero
+- [x] Link para o repositório GitHub
+- [x] Responsiva (mobile-friendly)
+
+---
+
+## Fase 18 — Demo: Ambiente Online
+
+**Objetivo:** Instância pública do BatAudit rodando na nuvem com dados de seed, para qualquer pessoa explorar sem instalar nada.
+
+**Contexto:** O usuário clica em "Ver demo" na landing page e já cai no dashboard com dados reais. Acesso de leitura apenas (sem login de escrita).
+
+- [ ] Deploy do stack completo (Writer + Worker + Reader + PostgreSQL + Redis) em servidor público
+- [ ] Seed automático ao subir: rodar `scripts/seed.go` para popular com ~3000 eventos
+- [ ] Usuário demo pré-criado com role `viewer` (email: `demo@bataudit.dev` / senha: `demo`)
+- [ ] Reset automático a cada 24h (cron job que re-roda o seed para manter dados frescos)
+- [ ] Banner no dashboard: "Você está no ambiente de demonstração — dados são resetados diariamente"
+- [ ] Bloquear operações destrutivas no usuário demo (não pode deletar projetos, API Keys, etc.)
+
+---
+
+## Fase 19 — Demo: One-Command Local
+
+**Objetivo:** Qualquer desenvolvedor sobe o BatAudit completo com dados de exemplo com um único comando.
+
+**Contexto:** Para quem quer testar localmente antes de decidir instalar de verdade. Zero configuração manual.
+
+- [x] `docker-compose.demo.yml` — sobe toda a stack + roda seed automaticamente
+- [x] Serviço `seeder` no compose que aguarda o banco ficar pronto e executa `seed.go`
+- [x] Usuário demo criado automaticamente via `INITIAL_OWNER_*` env vars no compose
+- [x] Comando único documentado no README:
+  ```bash
+  docker compose -f docker-compose.demo.yml up
+  # Dashboard disponível em http://localhost:8082/app
+  # Login: demo@bataudit.dev / demo
+  ```
+- [x] `.env.demo` com todas as variáveis pré-configuradas (sem nada para o usuário editar)
+- [x] Seção "Quick Demo" no README com o comando acima em destaque
+
+---
+
 ## Ordem sugerida de execução
 
 ```
-Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 → Fase 7 → Fase 8 → Fase 9 → Fase 10 → Fase 11 → Fase 12
+Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 → Fase 7 → Fase 8 → Fase 9 → Fase 10 → Fase 11 → Fase 13 → Fase 14 → Fase 15 → Fase 16 → Fase 19 → Fase 17 → Fase 18 → Fase 12
 ```
 
 - Fase 1 e 2 são pré-requisitos para tudo
@@ -528,5 +727,12 @@ Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 →
 - Fase 9.3 (mock app) depende da Fase 7 (SDK Node.js) estar pronta
 - Fase 9.4 (seed) depende da Fase 3 (multi-projeto) estar pronta
 - Fase 10 (redesign) depende da Fase 6 (dashboard funcional) estar pronta — redesenhar em cima de algo que já funciona
+- Fase 13 (anomaly detection) depende da Fase 6 (dashboard) estar pronta para exibir os alertas
+- Fase 14 (notificações) depende da Fase 13 (anomaly detection) — notifica com base nos eventos `system.alert`
+- Fase 15 (export) pode ser feita em qualquer momento após a Fase 6, mas faz mais sentido depois dos filtros estarem maduros
+- Fase 16 (data tiering) é a cereja do bolo — deixar para o final, depois de tudo estável
+- Fase 19 (demo local) depende do projeto estar estável — Fase 10 concluída no mínimo
+- Fase 17 (landing page) depende da Fase 19 (demo local) e Fase 18 (demo online) para ter os links certos
+- Fase 18 (demo online) depende da Fase 12 (CI/CD) para ter pipeline de deploy automatizado
 - Fase 12.1 (CI) pode ser iniciada a qualquer momento, mas o valor máximo vem depois da Fase 9 (testes) estar pronta
 - Fase 12.2 e 12.3 (build + deploy) fazem mais sentido após a Fase 3 (autenticação) e antes de lançar os SDKs públicos (Fase 7/8)

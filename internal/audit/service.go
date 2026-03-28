@@ -34,6 +34,10 @@ func (service *Service) GetStats(projectID string) (*AuditStats, error) {
 	return service.repo.GetStats(projectID)
 }
 
+func (service *Service) GetOrphans(filters OrphanFilters) ([]AuditSummary, error) {
+	return service.repo.GetOrphans(filters)
+}
+
 func (service *Service) GetAuditByID(id string) (*Audit, error) {
 	if id == "" {
 		return nil, ErrInvalidIdentifier

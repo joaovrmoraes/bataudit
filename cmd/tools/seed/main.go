@@ -1,0 +1,332 @@
+// Seed creates a demo owner, project, API key, and realistic audit events.
+// Designed to run once inside docker-compose.demo.yml; exits 0 on success.
+package main
+
+import (
+	"fmt"
+	"log/slog"
+	"math/rand"
+	"os"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/joaovrmoraes/bataudit/internal/anomaly"
+	"github.com/joaovrmoraes/bataudit/internal/audit"
+	"github.com/joaovrmoraes/bataudit/internal/auth"
+	"github.com/joaovrmoraes/bataudit/internal/config"
+	"github.com/joaovrmoraes/bataudit/internal/db"
+	"gorm.io/gorm"
+)
+
+func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+
+	conn := connectWithRetry()
+	defer func() {
+		if sqlDB, err := conn.DB(); err == nil {
+			sqlDB.Close()
+		}
+	}()
+
+	ownerEmail := config.GetEnv("INITIAL_OWNER_EMAIL", "demo@bataudit.dev")
+	ownerPassword := config.GetEnv("INITIAL_OWNER_PASSWORD", "demo")
+	ownerName := config.GetEnv("INITIAL_OWNER_NAME", "Demo User")
+
+	authRepo := auth.NewRepository(conn)
+	authSvc := auth.NewService(authRepo, "demo-secret")
+
+	// Create owner (idempotent).
+	owner, err := authSvc.SetupOwner(ownerName, ownerEmail, ownerPassword)
+	if err != nil && err != auth.ErrOwnerAlreadyExists {
+		slog.Error("failed to create demo owner", "error", err)
+		os.Exit(1)
+	}
+	if owner != nil {
+		slog.Info("demo owner created", "email", ownerEmail)
+	} else {
+		slog.Info("demo owner already exists, skipping")
+		// Fetch existing owner for project linking.
+		owner, _ = authRepo.GetUserByEmail(ownerEmail)
+	}
+
+	// Create demo project (idempotent via slug).
+	project, err := authRepo.GetProjectBySlug("demo")
+	if err == auth.ErrNotFound {
+		project = &auth.Project{
+			ID:        uuid.New().String(),
+			Name:      "Demo Project",
+			Slug:      "demo",
+			CreatedAt: time.Now(),
+		}
+		if owner != nil {
+			project.CreatedBy = owner.ID
+		}
+		if createErr := authRepo.CreateProject(project); createErr != nil {
+			slog.Error("failed to create demo project", "error", createErr)
+			os.Exit(1)
+		}
+		slog.Info("demo project created", "id", project.ID)
+
+		// Seed default anomaly rules for the project.
+		anomalyRepo := anomaly.NewRepository(conn)
+		_ = anomalyRepo.CreateDefaultRules(project.ID)
+	} else if err != nil {
+		slog.Error("failed to look up demo project", "error", err)
+		os.Exit(1)
+	} else {
+		slog.Info("demo project already exists, skipping project creation")
+	}
+
+	// Check if events already seeded (avoid duplicate seeds).
+	var count int64
+	conn.Model(&audit.Audit{}).Where("project_id = ?", project.ID).Count(&count)
+	if count > 100 {
+		slog.Info("demo data already seeded", "events", count)
+		return
+	}
+
+	// Seed audit events.
+	total := seedEvents(conn, project.ID)
+	slog.Info("seed complete", "events_inserted", total, "project_id", project.ID)
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+func connectWithRetry() *gorm.DB {
+	for attempt := range 30 {
+		conn, err := db.Init()
+		if err == nil {
+			return conn
+		}
+		slog.Warn("db not ready, retrying...", "attempt", attempt+1, "error", err)
+		time.Sleep(3 * time.Second)
+	}
+	slog.Error("could not connect to database after 30 attempts")
+	os.Exit(1)
+	return nil
+}
+
+// ── seed data ─────────────────────────────────────────────────────────────────
+
+var services = []struct {
+	name  string
+	paths []string
+}{
+	{"api-gateway", []string{"/v1/users", "/v1/users/{id}", "/v1/auth/login", "/v1/auth/logout", "/v1/products", "/v1/orders", "/v1/health"}},
+	{"payments-service", []string{"/v1/payments", "/v1/payments/{id}", "/v1/refunds", "/v1/invoices", "/v1/subscriptions"}},
+	{"notification-service", []string{"/v1/notifications/send", "/v1/notifications/{id}", "/v1/templates", "/v1/email/send"}},
+	{"inventory-service", []string{"/v1/items", "/v1/items/{id}", "/v1/stock", "/v1/warehouses", "/v1/purchase-orders"}},
+}
+
+var demoUsers = []struct {
+	id    string
+	email string
+	name  string
+}{
+	{"usr_001", "alice@acme.com", "Alice Silva"},
+	{"usr_002", "bob@acme.com", "Bob Santos"},
+	{"usr_003", "carol@acme.com", "Carol Lima"},
+	{"usr_004", "dave@partner.io", "Dave Costa"},
+	{"usr_005", "eve@partner.io", "Eve Oliveira"},
+	{"svc_001", "service-account@internal", "Internal Service"},
+}
+
+var methods = []string{"GET", "POST", "PUT", "PATCH", "DELETE"}
+var methodWeights = []int{50, 25, 10, 8, 7}
+var statusCodes = []struct {
+	code, weight int
+}{
+	{200, 55}, {201, 15}, {204, 5},
+	{400, 8}, {401, 4}, {403, 3}, {404, 6}, {422, 2},
+	{500, 1}, {502, 1},
+}
+var ips = []string{"203.0.113.10", "198.51.100.42", "192.0.2.100", "10.0.0.5", "172.16.0.25"}
+var userAgents = []string{
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+	"okhttp/4.9.3", "axios/1.4.0", "python-requests/2.28.0", "Go-http-client/1.1",
+}
+
+func seedEvents(conn *gorm.DB, projectID string) int {
+	repo := audit.NewRepository(conn)
+	now := time.Now()
+	total := 0
+
+	for dayIdx := range 30 {
+		dayStart := now.AddDate(0, 0, -dayIdx).Truncate(24 * time.Hour)
+		isWeekend := dayStart.Weekday() == time.Saturday || dayStart.Weekday() == time.Sunday
+		count := randBetween(40, 80)
+		if !isWeekend {
+			count = randBetween(80, 150)
+		}
+		isSpike := dayIdx == 7 || dayIdx == 20
+
+		for range count {
+			e := generateEvent(dayStart, isSpike, projectID)
+			if err := repo.Create(&e); err == nil {
+				total++
+			}
+		}
+	}
+
+	// Dense session burst (last 2 hours) for alice.
+	burstStart := now.Add(-2 * time.Hour)
+	for i := range 40 {
+		e := generateEvent(burstStart, false, projectID)
+		e.Identifier = "usr_001"
+		e.UserEmail = "alice@acme.com"
+		e.UserName = "Alice Silva"
+		e.ServiceName = "api-gateway"
+		e.Environment = "production"
+		e.Timestamp = burstStart.Add(time.Duration(i) * 3 * time.Minute)
+		if err := repo.Create(&e); err == nil {
+			total++
+		}
+	}
+
+	// Orphan events — browser-side events with no matching backend audit.
+	// Simulates crashes/timeouts where the backend never responded.
+	for i := range 12 {
+		requestID := fmt.Sprintf("bat-%s", uuid.New().String()[:8])
+		svc := services[rand.Intn(len(services))]
+		user := demoUsers[rand.Intn(len(demoUsers))]
+		ts := now.Add(-time.Duration(rand.Intn(24)) * time.Hour).Add(-time.Duration(rand.Intn(60)) * time.Minute)
+		orphan := audit.Audit{
+			ID:          uuid.New().String(),
+			EventType:   "http",
+			Method:      audit.HTTPMethod(randChoice([]string{"GET", "POST", "PUT"})),
+			Path:        svc.paths[rand.Intn(len(svc.paths))],
+			StatusCode:  0, // browser captured request but never got a response
+			Identifier:  user.id,
+			UserEmail:   user.email,
+			UserName:    user.name,
+			UserAgent:   randChoice(userAgents),
+			RequestID:   requestID,
+			Source:      "browser",
+			ServiceName: svc.name,
+			Environment: "production",
+			Timestamp:   ts,
+			ProjectID:   projectID,
+			ErrorMessage: randChoice([]string{
+				"request timed out", "connection refused", "network error",
+				"fetch failed", "ERR_CONNECTION_RESET",
+			}),
+		}
+		if i%3 == 0 {
+			// Every 3rd orphan: also insert a backend event — this one is NOT orphan
+			backend := orphan
+			backend.ID = uuid.New().String()
+			backend.Source = "backend"
+			backend.StatusCode = 200
+			backend.ResponseTime = int64(randBetween(50, 300))
+			backend.ErrorMessage = ""
+			if err := repo.Create(&backend); err == nil {
+				total++
+			}
+		}
+		if err := repo.Create(&orphan); err == nil {
+			total++
+		}
+	}
+
+	return total
+}
+
+func generateEvent(dayStart time.Time, isSpike bool, projectID string) audit.Audit {
+	svc := services[rand.Intn(len(services))]
+	user := demoUsers[rand.Intn(len(demoUsers))]
+	method := weightedPick(methods, methodWeights)
+	statusCode := weightedStatus(isSpike)
+	responseTime := responseTimeFor(statusCode)
+	hour := businessHour()
+	ts := dayStart.Add(time.Duration(hour)*time.Hour +
+		time.Duration(rand.Intn(60))*time.Minute +
+		time.Duration(rand.Intn(60))*time.Second)
+
+	var errMsg string
+	if statusCode >= 500 {
+		errMsg = randChoice([]string{
+			"internal server error", "database connection timeout",
+			"upstream service unavailable",
+		})
+	}
+
+	env := "production"
+	if n := rand.Intn(100); n >= 70 && n < 90 {
+		env = "staging"
+	} else if n >= 90 {
+		env = "development"
+	}
+
+	return audit.Audit{
+		ID:           uuid.New().String(),
+		EventType:    "http",
+		Method:       audit.HTTPMethod(method),
+		Path:         svc.paths[rand.Intn(len(svc.paths))],
+		StatusCode:   statusCode,
+		ResponseTime: int64(responseTime),
+		Identifier:   user.id,
+		UserEmail:    user.email,
+		UserName:     user.name,
+		UserRoles:    []byte(`["viewer"]`),
+		IP:           randChoice(ips),
+		UserAgent:    randChoice(userAgents),
+		RequestID:    fmt.Sprintf("bat-%s", uuid.New().String()[:8]),
+		ServiceName:  svc.name,
+		Environment:  env,
+		Timestamp:    ts,
+		ErrorMessage: errMsg,
+		ProjectID:    projectID,
+	}
+}
+
+func weightedPick(items []string, weights []int) string {
+	n := rand.Intn(100)
+	sum := 0
+	for i, w := range weights {
+		sum += w
+		if n < sum {
+			return items[i]
+		}
+	}
+	return items[0]
+}
+
+func weightedStatus(spike bool) int {
+	if spike && rand.Intn(100) < 30 {
+		return randChoice([]int{500, 502, 503})
+	}
+	n := rand.Intn(100)
+	sum := 0
+	for _, s := range statusCodes {
+		sum += s.weight
+		if n < sum {
+			return s.code
+		}
+	}
+	return 200
+}
+
+func responseTimeFor(status int) int {
+	if status >= 500 {
+		return randBetween(1000, 10000)
+	}
+	if status >= 400 {
+		return randBetween(50, 500)
+	}
+	if rand.Intn(100) < 5 {
+		return randBetween(500, 3000)
+	}
+	return randBetween(5, 250)
+}
+
+func businessHour() int {
+	if rand.Intn(100) < 70 {
+		return 9 + rand.Intn(10)
+	}
+	return rand.Intn(24)
+}
+
+func randBetween(min, max int) int { return min + rand.Intn(max-min+1) }
+
+func randChoice[T any](s []T) T { return s[rand.Intn(len(s))] }
