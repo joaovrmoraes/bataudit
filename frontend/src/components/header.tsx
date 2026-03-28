@@ -1,37 +1,136 @@
-// import { Activity, Search, Settings } from 'lucide-react'
-// import { Button } from './ui/button'
-// import { Input } from './ui/input'
+import { Key, LogOut, LayoutDashboard, ChevronDown, Activity } from 'lucide-react'
+import { Link, useRouter } from '@tanstack/react-router'
+import { Button } from './ui/button'
+import { getUser, clearAuth } from '@/lib/auth'
+import { useLogout } from '@/queries/auth'
+import { useProjects } from '@/queries/projects'
+import { useProject } from '@/lib/project-context'
+import React from 'react'
 
 export function Header() {
+  const router = useRouter()
+  const user = getUser()
+  const logoutMutation = useLogout()
+  const { data: projects = [] } = useProjects()
+  const { selectedProjectId, setSelectedProjectId } = useProject()
+  const [open, setOpen] = React.useState(false)
+
+  const isOwner = user?.role === 'owner'
+  const selectedProject = projects.find(p => p.id === selectedProjectId)
+  const selectorLabel = selectedProjectId === null
+    ? (isOwner ? 'All Projects' : (selectedProject?.name ?? 'Select project'))
+    : (selectedProject?.name ?? 'Select project')
+
+  function handleLogout() {
+    logoutMutation.mutate(undefined, {
+      onSettled: () => {
+        clearAuth()
+        router.navigate({ to: '/login' })
+      },
+    })
+  }
+
   return (
     <header className="border-b border-border bg-gradient-dark backdrop-blur-sm">
       <div className="flex h-16 items-center justify-between px-6">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-3">
-            <div>
-              <h1 className="text-xl font-bold text-slate-500">BatAudit</h1>
-              <p className="text-xs text-muted-foreground">System Monitoring</p>
-            </div>
+        <div className="flex items-center space-x-6">
+          <div>
+            <h1 className="text-xl font-bold text-slate-500">BatAudit</h1>
+            <p className="text-xs text-muted-foreground">System Monitoring</p>
           </div>
+
+          <nav className="flex items-center space-x-1">
+            <Link to="/app/">
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Button>
+              )}
+            </Link>
+            <Link to="/app/sessions">
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Activity className="h-4 w-4" />
+                  Sessions
+                </Button>
+              )}
+            </Link>
+            <Link to="/app/settings/api-keys">
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Key className="h-4 w-4" />
+                  API Keys
+                </Button>
+              )}
+            </Link>
+          </nav>
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search events..."
-              className="pl-10 bg-secondary/50 border-border/50 focus:bg-secondary"
-            />
+        <div className="flex items-center space-x-3">
+          {/* Project selector */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 min-w-[160px] justify-between"
+              onClick={() => setOpen(v => !v)}
+            >
+              <span className="truncate">{selectorLabel}</span>
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            </Button>
+
+            {open && (
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-md border border-border bg-card shadow-lg">
+                {isOwner && (
+                  <button
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors border-b border-border/50"
+                    onClick={() => { setSelectedProjectId(null); setOpen(false) }}
+                  >
+                    All Projects
+                  </button>
+                )}
+                {projects.map(p => (
+                  <button
+                    key={p.id}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors"
+                    onClick={() => { setSelectedProjectId(p.id); setOpen(false) }}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <Button variant="secondary" size="sm">
-            <Activity className="h-4 w-4 mr-2" />
-            Live
+          {user && (
+            <div className="text-right">
+              <p className="text-xs font-medium text-foreground">{user.name || user.email}</p>
+              <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            disabled={logoutMutation.isPending}
+            className="gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
           </Button>
-
-          <Button variant="ghost" size="sm">
-            <Settings className="h-4 w-4" />
-          </Button> */}
         </div>
       </div>
     </header>

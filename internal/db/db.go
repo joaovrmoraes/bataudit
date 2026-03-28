@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/go-playground/validator/v10"
 	"gorm.io/driver/postgres"
@@ -32,26 +33,24 @@ func RunMigrations(config *Database) error {
 		dsn,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize migrations: %w", err)
 	}
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return err
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 	return nil
 }
 
-func Init() *gorm.DB {
+func Init() (*gorm.DB, error) {
 	config := LoadConfig()
 
 	validate := validator.New()
 	if err := validate.Struct(config); err != nil {
-		fmt.Printf("Validation error: %v\n", err)
-		panic("Invalid database configuration")
+		return nil, fmt.Errorf("invalid database configuration: %w", err)
 	}
 
 	if err := RunMigrations(&config); err != nil {
-		fmt.Printf("Migration error: %v\n", err)
-		panic("Failed to run migrations")
+		return nil, fmt.Errorf("migration error: %w", err)
 	}
 
 	var db *gorm.DB
@@ -63,20 +62,17 @@ func Init() *gorm.DB {
 			config.Host, config.User, config.Password, config.Name, config.Port)
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err != nil {
-			fmt.Printf("Failed to connect to Postgres: %v\n", err)
-			panic(err)
+			return nil, fmt.Errorf("failed to connect to postgres: %w", err)
 		}
 	case "sqlite":
 		db, err = gorm.Open(sqlite.Open("file:"+config.SQLitePath+"?_pragma=foreign_keys(1)"), &gorm.Config{})
 		if err != nil {
-			fmt.Printf("Failed to connect to SQLite: %v\n", err)
-			panic(err)
+			return nil, fmt.Errorf("failed to connect to sqlite: %w", err)
 		}
 	default:
-		fmt.Printf("Driver database not supported: %s\n", config.Driver)
-		panic("Unsupported database driver")
+		return nil, fmt.Errorf("unsupported database driver: %s", config.Driver)
 	}
 
-	fmt.Printf("Using database driver: %s\n", config.Driver)
-	return db
+	slog.Info("Database connected", "driver", config.Driver)
+	return db, nil
 }

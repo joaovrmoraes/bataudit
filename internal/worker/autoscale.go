@@ -2,13 +2,13 @@ package worker
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 	"time"
 )
 
-// scaleWorkers - adjust the number of active workers to the target count
+// scaleWorkers adjusts the number of active workers to the target count
 func (s *Service) scaleWorkers(ctx context.Context, wg *sync.WaitGroup, targetWorkerCount int) {
 	s.workerMutex.Lock()
 	defer s.workerMutex.Unlock()
@@ -29,15 +29,12 @@ func (s *Service) scaleWorkers(ctx context.Context, wg *sync.WaitGroup, targetWo
 		return
 	}
 
-	if targetWorkerCount < s.activeWorkers {
-		s.scaleDown(targetWorkerCount)
-		return
-	}
+	s.scaleDown(targetWorkerCount)
 }
 
-// scaleUp - scale up the number of workers
+// scaleUp launches new workers up to targetCount
 func (s *Service) scaleUp(ctx context.Context, wg *sync.WaitGroup, targetCount int) {
-	fmt.Printf("[Autoscale] Scaling up from %d to %d workers\n", s.activeWorkers, targetCount)
+	slog.Info("Scaling up", "from", s.activeWorkers, "to", targetCount)
 
 	nextWorkerID := 0
 	for id := range s.workerChannels {
@@ -60,13 +57,13 @@ func (s *Service) scaleUp(ctx context.Context, wg *sync.WaitGroup, targetCount i
 	s.lastScaleTime = time.Now()
 }
 
-// scaleDown - reduce the number of workers
+// scaleDown stops workers down to targetCount
 func (s *Service) scaleDown(targetCount int) {
 	if s.activeWorkers <= s.config.MinWorkerCount {
 		return
 	}
 
-	fmt.Printf("[Autoscale] Scaling down from %d to %d workers\n", s.activeWorkers, targetCount)
+	slog.Info("Scaling down", "from", s.activeWorkers, "to", targetCount)
 
 	workersToRemove := s.activeWorkers - targetCount
 
@@ -85,37 +82,38 @@ func (s *Service) scaleDown(targetCount int) {
 	}
 
 	s.activeWorkers -= workersToRemove
-
 	s.lastScaleTime = time.Now()
 }
 
-// evaluateScaling - evaluate the need for scaling based on metrics
+// evaluateScaling evaluates the need for scaling based on queue metrics
 func (s *Service) evaluateScaling(ctx context.Context, wg *sync.WaitGroup, queueSize int64) {
 	s.workerMutex.Lock()
 	currentWorkers := s.activeWorkers
 	s.workerMutex.Unlock()
 
-	fmt.Printf("[Autoscale] Evaluating scaling: Queue size %d, Current workers: %d, Threshold: %d\n",
-		queueSize, currentWorkers, s.config.ScaleUpThreshold)
+	slog.Debug("Evaluating scaling",
+		"queue_size", queueSize,
+		"current_workers", currentWorkers,
+		"threshold", s.config.ScaleUpThreshold,
+	)
 
 	if queueSize > s.config.ScaleUpThreshold && currentWorkers < s.config.MaxWorkerCount {
 		var workersNeeded int
 
 		if queueSize > s.config.ScaleUpThreshold*5 {
 			workersNeeded = s.config.MaxWorkerCount
-			fmt.Printf("[Autoscale] Queue exceeds 5x threshold, scaling to maximum: %d workers\n", workersNeeded)
+			slog.Warn("Queue exceeds 5x threshold, scaling to max", "workers", workersNeeded)
 		} else if queueSize > s.config.ScaleUpThreshold*3 {
 			workersNeeded = int(math.Ceil(float64(currentWorkers) * s.config.WorkerScaleFactor * 1.5))
-			fmt.Printf("[Autoscale] Queue exceeds 3x threshold, aggressive scaling to %d workers\n", workersNeeded)
+			slog.Info("Queue exceeds 3x threshold, aggressive scaling", "workers", workersNeeded)
 		} else {
 			workersNeeded = int(math.Ceil(float64(currentWorkers) * s.config.WorkerScaleFactor))
-			fmt.Printf("[Autoscale] Normal scaling to %d workers\n", workersNeeded)
+			slog.Info("Normal scale up", "workers", workersNeeded)
 		}
 
 		if workersNeeded > s.config.MaxWorkerCount {
 			workersNeeded = s.config.MaxWorkerCount
 		}
-
 		if workersNeeded <= currentWorkers {
 			workersNeeded = currentWorkers + 1
 		}
@@ -126,11 +124,9 @@ func (s *Service) evaluateScaling(ctx context.Context, wg *sync.WaitGroup, queue
 
 	if queueSize < s.config.ScaleDownThreshold && currentWorkers > s.config.MinWorkerCount {
 		workersNeeded := int(math.Floor(float64(currentWorkers) / s.config.WorkerScaleFactor))
-
 		if workersNeeded < s.config.MinWorkerCount {
 			workersNeeded = s.config.MinWorkerCount
 		}
-
 		if workersNeeded < currentWorkers {
 			s.scaleWorkers(ctx, wg, workersNeeded)
 		}

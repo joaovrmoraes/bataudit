@@ -22,8 +22,16 @@ func (service *Service) CreateAudit(audit Audit) error {
 	return service.repo.Create(&audit)
 }
 
-func (service *Service) ListAudits(limit, offset int) (ListResult, error) {
-	return service.repo.List(limit, offset)
+func (service *Service) ListAudits(limit, offset int, filters ListFilters) (ListResult, error) {
+	return service.repo.List(limit, offset, filters)
+}
+
+func (service *Service) GetSessions(filters SessionFilters) ([]Session, error) {
+	return service.repo.GetSessions(filters)
+}
+
+func (service *Service) GetStats(projectID string) (*AuditStats, error) {
+	return service.repo.GetStats(projectID)
 }
 
 func (service *Service) GetAuditByID(id string) (*Audit, error) {

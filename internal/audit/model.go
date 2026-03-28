@@ -69,8 +69,53 @@ type Audit struct {
 
 	// System context
 	ServiceName string    `json:"service_name" validate:"required,valid_service_name,max=100"` // Name of the service/API
-	Environment string    `json:"environment" validate:"required,valid_environment"`           // Environment (prod, staging, dev)
-	Timestamp   time.Time `json:"timestamp" validate:"required"`                               // Timestamp of the request
+	Environment string    `json:"environment" validate:"required,valid_environment"`            // Environment (prod, staging, dev)
+	Timestamp   time.Time `json:"timestamp" validate:"required"`                                // Timestamp of the request
+	ProjectID   string    `json:"project_id,omitempty"`                                         // Resolved project (set by Writer automatically)
+}
+
+type Session struct {
+	Identifier      string  `json:"identifier"`
+	ServiceName     string  `json:"service_name"`
+	SessionStart    string  `json:"session_start"`
+	SessionEnd      string  `json:"session_end"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	EventCount      int64   `json:"event_count"`
+}
+
+type SessionFilters struct {
+	ProjectID   string
+	Identifier  string
+	ServiceName string
+	StartDate   *time.Time
+	EndDate     *time.Time
+}
+
+type ServiceBreakdown struct {
+	ServiceName     string  `json:"service_name"`
+	Requests        int64   `json:"requests"`
+	Errors          int64   `json:"errors"`
+	AvgResponseTime float64 `json:"avg_response_time"`
+	LastEvent       string  `json:"last_event"`
+}
+
+type TimelinePoint struct {
+	Hour  string `json:"hour"`
+	Count int64  `json:"count"`
+}
+
+type AuditStats struct {
+	Total           int64              `json:"total"`
+	Errors4xx       int64              `json:"errors_4xx"`
+	Errors5xx       int64              `json:"errors_5xx"`
+	AvgResponseTime float64            `json:"avg_response_time"`
+	P95ResponseTime float64            `json:"p95_response_time"`
+	ActiveServices  int64              `json:"active_services"`
+	LastEventAt     string             `json:"last_event_at"`
+	ByService       []ServiceBreakdown `json:"by_service"`
+	ByStatusClass   map[string]int64   `json:"by_status_class"`
+	ByMethod        map[string]int64   `json:"by_method"`
+	Timeline        []TimelinePoint    `json:"timeline"`
 }
 
 type AuditSummary struct {
@@ -84,4 +129,5 @@ type AuditSummary struct {
 	ServiceName  string     `json:"service_name"`
 	Timestamp    time.Time  `json:"timestamp"`
 	ResponseTime int64      `json:"response_time"`
+	ProjectID    string     `json:"project_id,omitempty"`
 }

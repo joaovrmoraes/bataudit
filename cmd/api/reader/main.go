@@ -1,55 +1,132 @@
+// @title           BatAudit API
+// @version         1.0
+// @description     Self-hosted audit logging platform. Collect, store and query audit events from any service.
+// @contact.name    BatAudit
+// @license.name    MIT
+
+// @host            localhost:8082
+// @BasePath        /v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter: Bearer <token>
+
 package main
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/joaovrmoraes/bataudit/graph"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
+	"github.com/joaovrmoraes/bataudit/internal/auth"
 	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
-	"github.com/vektah/gqlparser/v2/ast"
-
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/handler/extension"
-	"github.com/99designs/gqlgen/graphql/handler/lru"
-	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/99designs/gqlgen/graphql/playground"
+	_ "github.com/joaovrmoraes/bataudit/docs"
+	"github.com/joaovrmoraes/bataudit/internal/health"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
 )
 
 func main() {
+	setupLogger()
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	conn := db.Init()
-	sqlDB, _ := conn.DB()
+	maxRetries := 5
+	var conn *gorm.DB
+	var dbErr error
 
-	defer sqlDB.Close()
-
-	resolver := &graph.Resolver{
-		AuditService: audit.NewService(audit.NewRepository(conn)),
+	for i := 0; i < maxRetries; i++ {
+		slog.Info("Connecting to database", "attempt", i+1, "max_retries", maxRetries)
+		conn, dbErr = db.Init()
+		if dbErr == nil {
+			slog.Info("Database connection established")
+			break
+		}
+		slog.Warn("Database connection failed", "error", dbErr)
+		if i < maxRetries-1 {
+			slog.Info("Retrying in 5s")
+			time.Sleep(5 * time.Second)
+		}
 	}
 
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: resolver}))
+	if dbErr != nil {
+		slog.Error("Could not connect to database", "error", dbErr, "attempts", maxRetries)
+		os.Exit(1)
+	}
 
-	srv.AddTransport(transport.Options{})
-	srv.AddTransport(transport.GET{})
-	srv.AddTransport(transport.POST{})
+	sqlDB, sqlErr := conn.DB()
+	if sqlErr != nil {
+		slog.Error("Failed to get underlying DB connection", "error", sqlErr)
+		os.Exit(1)
+	}
+	defer sqlDB.Close()
 
-	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+	// Auth setup
+	jwtSecret := config.GetEnv("JWT_SECRET", "change-me-in-production")
+	authRepo := auth.NewRepository(conn)
+	authService := auth.NewService(authRepo, jwtSecret)
+	authHandler := auth.NewHandler(authService)
 
-	srv.Use(extension.Introspection{})
-	srv.Use(extension.AutomaticPersistedQuery{
-		Cache: lru.New[string](100),
-	})
+	// Initial owner setup
+	ownerEmail := config.GetEnv("INITIAL_OWNER_EMAIL", "")
+	ownerPassword := config.GetEnv("INITIAL_OWNER_PASSWORD", "")
+	ownerName := config.GetEnv("INITIAL_OWNER_NAME", "Admin")
+	if ownerEmail != "" && ownerPassword != "" {
+		if _, err := authService.SetupOwner(ownerName, ownerEmail, ownerPassword); err != nil {
+			if err != auth.ErrOwnerAlreadyExists {
+				slog.Error("Failed to create initial owner", "error", err)
+			}
+		} else {
+			slog.Info("Initial owner created", "email", ownerEmail)
+		}
+	}
 
-	r.GET("/", gin.WrapH(playground.Handler("GraphQL playground", "/query")))
-	r.POST("/query", gin.WrapH(srv))
+	v1 := r.Group("/v1")
+
+	// Public auth routes
+	authGroup := v1.Group("/auth")
+	authHandler.RegisterPublicRoutes(authGroup)
+
+	// Protected auth + management routes
+	protectedAuth := v1.Group("/auth")
+	protectedAuth.Use(authService.JWTMiddleware())
+	authHandler.RegisterProtectedRoutes(protectedAuth)
+
+	// Protected audit routes
+	auditGroup := v1.Group("/audit")
+	auditGroup.Use(authService.JWTMiddleware())
+	repository := audit.NewRepository(conn)
+	handler := audit.NewHandler(repository)
+	handler.RegisterReadRoutes(auditGroup)
+
+	healthHandler := health.NewHealthHandler(conn, "1.0.0", "development")
+	healthHandler.RegisterRoutes(r.Group(""))
+
+	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.Static("/app", "./frontend/dist")
 
 	port := config.GetEnv("API_READER_PORT", "8082")
-	fmt.Printf("Reader server running on port %s\n", port)
+	slog.Info("Reader server running", "port", port)
 	r.Run(":" + port)
+}
+
+func setupLogger() {
+	level := slog.LevelInfo
+	switch config.GetEnv("LOG_LEVEL", "info") {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 }

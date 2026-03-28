@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joaovrmoraes/bataudit/internal/audit"
+	"github.com/joaovrmoraes/bataudit/internal/auth"
 	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
 	"github.com/joaovrmoraes/bataudit/internal/health"
@@ -16,6 +17,8 @@ import (
 )
 
 func main() {
+	setupLogger()
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
@@ -24,60 +27,86 @@ func main() {
 	var err error
 
 	for i := 0; i < maxRetries; i++ {
-		fmt.Printf("Trying to connect to database (attempt %d of %d)...\n", i+1, maxRetries)
-		conn = db.Init()
-		if conn != nil {
-			fmt.Println("Database connection established successfully!")
+		slog.Info("Connecting to database", "attempt", i+1, "max_retries", maxRetries)
+		conn, err = db.Init()
+		if err == nil {
+			slog.Info("Database connection established")
 			break
 		}
+		slog.Warn("Database connection failed", "error", err)
 		if i < maxRetries-1 {
-			fmt.Println("Connection failed, retrying in 5 seconds...")
+			slog.Info("Retrying in 5s")
 			time.Sleep(5 * time.Second)
 		}
 	}
 
-	if conn == nil {
-		log.Fatalf("Could not connect to database after %d attempts", maxRetries)
+	if err != nil {
+		slog.Error("Could not connect to database", "error", err, "attempts", maxRetries)
+		os.Exit(1)
 	}
 
-	sqlDB, _ := conn.DB()
+	sqlDB, sqlErr := conn.DB()
+	if sqlErr != nil {
+		slog.Error("Failed to get underlying DB connection", "error", sqlErr)
+		os.Exit(1)
+	}
 	defer sqlDB.Close()
 
 	redisAddress := config.GetEnv("REDIS_ADDRESS", "localhost:6379")
-	fmt.Printf("Connecting to Redis at: %s\n", redisAddress)
+	slog.Info("Connecting to Redis", "address", redisAddress)
 
 	var redisQueue *queue.RedisQueue
 	for i := 0; i < maxRetries; i++ {
-		fmt.Printf("Trying to connect to Redis (attempt %d of %d)...\n", i+1, maxRetries)
+		slog.Info("Connecting to Redis", "attempt", i+1, "max_retries", maxRetries)
 		redisQueue, err = queue.NewRedisQueue(redisAddress, queue.DefaultQueueName)
 		if err == nil {
-			fmt.Println("Redis connection established successfully!")
+			slog.Info("Redis connection established")
 			break
 		}
-		fmt.Printf("Redis connection failed: %v\n", err)
+		slog.Warn("Redis connection failed", "error", err)
 		if i < maxRetries-1 {
-			fmt.Println("Retrying in 5 seconds...")
+			slog.Info("Retrying in 5s")
 			time.Sleep(5 * time.Second)
 		}
 	}
 
-	if redisQueue == nil {
-		log.Fatalf("Failed to connect to Redis after %d attempts", maxRetries)
+	if err != nil {
+		slog.Error("Failed to connect to Redis", "error", err, "attempts", maxRetries)
+		os.Exit(1)
 	}
 	defer redisQueue.Close()
 
-	auditGroup := r.Group("/audit")
-	{
-		repository := audit.NewRepository(conn)
+	// Auth setup (API Key middleware)
+	jwtSecret := config.GetEnv("JWT_SECRET", "change-me-in-production")
+	authRepo := auth.NewRepository(conn)
+	authService := auth.NewService(authRepo, jwtSecret)
 
-		handler := audit.NewQueueHandler(repository, redisQueue)
+	v1 := r.Group("/v1")
+	{
+		auditGroup := v1.Group("/audit")
+		auditGroup.Use(authService.APIKeyMiddleware())
+		repository := audit.NewRepository(conn)
+		handler := audit.NewQueueHandler(repository, redisQueue, authService)
 		handler.RegisterWriteRoutes(auditGroup)
 	}
 
-	handler := health.NewHealthHandler(conn, "1.0.0", "development")
-	handler.RegisterRoutes(r.Group(""))
+	healthHandler := health.NewHealthHandler(conn, "1.0.0", "development")
+	healthHandler.RegisterRoutes(r.Group(""))
 
 	port := config.GetEnv("API_WRITER_PORT", "8081")
-	fmt.Printf("Writer server running on port %s\n", port)
+	slog.Info("Writer server running", "port", port)
 	r.Run(":" + port)
+}
+
+func setupLogger() {
+	level := slog.LevelInfo
+	switch config.GetEnv("LOG_LEVEL", "info") {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 }

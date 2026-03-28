@@ -1,15 +1,11 @@
 # Reader
 
-HTTP API responsible for querying and serving audit events to the frontend dashboard and external consumers.
+HTTP API responsible for querying and serving audit data to the dashboard and external consumers.
 
-> **Note:** The current implementation uses GraphQL (gqlgen). Phase 1 of the roadmap replaces it with a standard REST API using the existing `handler.go` — the REST routes are already implemented and ready.
-
-## Responsibility
-
-The Reader is a **read-only** service. It never receives or writes audit events — that is the Writer's job. It exposes the stored data for consumption by the dashboard and integrations.
+> Requires JWT authentication on all routes except `/health` and `/docs`.
 
 ```
-Dashboard / Client → GET /audit → Reader → PostgreSQL
+Dashboard / Client → JWT → Reader → PostgreSQL
 ```
 
 ## Port
@@ -18,95 +14,112 @@ Dashboard / Client → GET /audit → Reader → PostgreSQL
 |---|---|
 | `API_READER_PORT` | `8082` |
 
-## Endpoints (REST — post Phase 1)
+---
 
-### `GET /audit`
+## Endpoints
 
-Returns a paginated list of audit events, ordered by most recent first.
+All routes are prefixed with `/v1`. Authenticate with `Authorization: Bearer <token>`.
 
-**Query parameters:**
+### Auth
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `page` | integer | `1` | Page number |
-| `limit` | integer | `10` | Items per page |
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/auth/login` | Obtain JWT token |
+| `POST` | `/v1/auth/logout` | Invalidate session |
+| `GET`  | `/v1/auth/me` | Current user info |
+| `GET`  | `/v1/auth/projects` | List accessible projects |
+| `POST` | `/v1/auth/projects` | Create project |
+| `GET`  | `/v1/auth/projects/:id/members` | List project members |
+| `POST` | `/v1/auth/projects/:id/members` | Add member by email |
+| `PATCH`| `/v1/auth/projects/:id/members/:userId` | Update member role |
+| `DELETE`| `/v1/auth/projects/:id/members/:userId` | Remove member |
+| `GET`  | `/v1/auth/api-keys` | List API keys for a project |
+| `POST` | `/v1/auth/api-keys` | Create API key (shown once) |
+| `DELETE`| `/v1/auth/api-keys/:id` | Revoke API key |
 
-**Response `200 OK`:**
+### Audit
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/audit` | Paginated event list with filters + sorting |
+| `GET` | `/v1/audit/stats` | Aggregated metrics (totals, error rates, p95, timeline) |
+| `GET` | `/v1/audit/sessions` | Derived user sessions (30-min inactivity gap) |
+| `GET` | `/v1/audit/:id` | Full detail of a single event |
+
+#### `GET /v1/audit` — query parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `page`, `limit` | Pagination |
+| `project_id` | Filter by project |
+| `service_name` | Filter by service |
+| `identifier` | Filter by user/client ID |
+| `method` | Filter by HTTP method |
+| `status_code` | Filter by status code |
+| `environment` | Filter by environment |
+| `start_date`, `end_date` | ISO 8601 date range |
+| `sort_by` | `timestamp` \| `status_code` \| `response_time` (default: `timestamp`) |
+| `sort_order` | `asc` \| `desc` (default: `desc`) |
+
+#### `GET /v1/audit/stats` — response
 
 ```json
 {
-  "data": [
-    {
-      "id": "uuid",
-      "identifier": "user-123",
-      "user_email": "user@example.com",
-      "user_name": "John Doe",
-      "method": "POST",
-      "path": "/api/users",
-      "status_code": 201,
-      "service_name": "my-api",
-      "timestamp": "2024-01-15T10:30:00Z",
-      "response_time": 142
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "totalPage": 10,
-    "limit": 10,
-    "totalItems": 98
-  }
+  "total": 1200,
+  "errors_4xx": 48,
+  "errors_5xx": 6,
+  "avg_response_time": 142.5,
+  "p95_response_time": 890.0,
+  "active_services": 4,
+  "last_event_at": "2024-01-15T10:30:00Z",
+  "by_service": [...],
+  "by_status_class": { "2xx": 1146, "4xx": 48, "5xx": 6 },
+  "by_method": { "GET": 800, "POST": 300, ... },
+  "timeline": [{ "hour": "2024-01-15T09:00:00Z", "count": 120 }, ...]
 }
 ```
 
-> The list endpoint returns `AuditSummary` objects — a subset of fields optimized for display. Full event details are available via the details endpoint.
+### Other
+
+| Path | Description |
+|------|-------------|
+| `GET /health` | Service health + DB status |
+| `GET /docs/*` | Swagger UI (interactive API docs) |
+| `GET /app` | Serves the compiled React dashboard |
 
 ---
-
-### `GET /audit/:id`
-
-Returns the complete details of a single audit event by ID.
-
-**Response `200 OK`:** Full `Audit` object including `request_body`, `query_params`, `path_params`, `user_roles`, `ip`, `user_agent`, etc.
-
-**Response `404 Not Found`:**
-
-```json
-{ "error": "Audit record not found" }
-```
-
----
-
-### Static frontend
-
-In production, the Reader also serves the compiled frontend:
-
-```
-GET /app  →  frontend/dist/index.html
-```
 
 ## Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `API_READER_PORT` | `8082` | Port the server listens on |
-| `DB_DRIVER` | `postgres` | Database driver |
-| `DB_HOST` | `localhost` | Database host |
-| `DB_PORT` | `5432` | Database port |
-| `DB_USER` | — | Database user |
-| `DB_PASSWORD` | — | Database password |
-| `DB_NAME` | — | Database name |
+| `API_READER_PORT` | `8082` | Port |
+| `JWT_SECRET` | `change-me-in-production` | JWT signing secret |
+| `INITIAL_OWNER_EMAIL` | — | Auto-create owner on first startup |
+| `INITIAL_OWNER_PASSWORD` | — | Auto-create owner on first startup |
+| `INITIAL_OWNER_NAME` | `Admin` | Owner display name |
+| `DB_DRIVER` | `postgres` | `postgres` or `sqlite` |
+| `DB_HOST` | `localhost` | |
+| `DB_PORT` | `5432` | |
+| `DB_USER` | — | |
+| `DB_PASSWORD` | — | |
+| `DB_NAME` | — | |
+| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 
-## Dependencies
-
-- **PostgreSQL** — sole data source; the Reader has no connection to Redis
+---
 
 ## Running locally
 
 ```bash
-# Start dependencies
 docker compose up -d postgres
 
-# Run
+JWT_SECRET=change-me \
 DB_HOST=localhost DB_USER=batuser DB_PASSWORD=batpassword DB_NAME=batdb \
   go run ./cmd/api/reader
+```
+
+## Regenerating Swagger docs
+
+```bash
+swag init -g cmd/api/reader/main.go -o docs
 ```

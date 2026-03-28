@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,23 +12,23 @@ import (
 	"github.com/joaovrmoraes/bataudit/internal/queue"
 )
 
-// ConnectToRedisWithRetry - try to connect to Redis with multiple attempts
+// ConnectToRedisWithRetry tries to connect to Redis with exponential backoff
 func ConnectToRedisWithRetry(address, queueName string, maxRetries int) (*queue.RedisQueue, error) {
 	var redisQueue *queue.RedisQueue
 	var err error
 
 	for i := 0; i < maxRetries; i++ {
-		fmt.Printf("Trying to connect to Redis (attempt %d of %d)...\n", i+1, maxRetries)
+		slog.Info("Connecting to Redis", "attempt", i+1, "max_retries", maxRetries)
 		redisQueue, err = queue.NewRedisQueue(address, queueName)
 		if err == nil {
-			fmt.Println("Successfully connected to Redis!")
+			slog.Info("Redis connection established")
 			return redisQueue, nil
 		}
 
-		fmt.Printf("Error connecting to Redis: %v\n", err)
+		slog.Warn("Redis connection failed", "error", err)
 		if i < maxRetries-1 {
 			waitTime := time.Duration(2<<uint(i)) * time.Second
-			fmt.Printf("Retrying in %v...\n", waitTime)
+			slog.Info("Retrying", "delay", waitTime.String())
 			time.Sleep(waitTime)
 		}
 	}
@@ -43,10 +44,9 @@ func SetupSignalHandler(ctx context.Context, cancel context.CancelFunc) {
 	go func() {
 		select {
 		case <-sigChan:
-			fmt.Println("\nInterrupt signal received. Shutting down workers...")
+			slog.Info("Interrupt signal received, shutting down")
 			cancel()
 		case <-ctx.Done():
-			// Context was already canceled elsewhere
 			return
 		}
 	}()

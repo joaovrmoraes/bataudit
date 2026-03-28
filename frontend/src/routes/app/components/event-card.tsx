@@ -89,7 +89,7 @@ export function EventCard({ event, className }: EventCardProps) {
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-2">
-            <User className="h- w-4 text-muted-foreground" />
+            <User className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground">
               {event.identifier}
             </span>

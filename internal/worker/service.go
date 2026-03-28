@@ -3,7 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -18,9 +18,9 @@ type Service struct {
 	redisQueue *queue.RedisQueue
 
 	// Worker management
-	activeWorkers  int               // Current number of active workers
+	activeWorkers  int              // Current number of active workers
 	workerChannels map[int]chan bool // Channels to signal workers to stop
-	workerMutex    sync.Mutex        // Mutex to protect worker operations
+	workerMutex    sync.Mutex       // Mutex to protect worker operations
 
 	// Autoscaling
 	lastScaleTime  time.Time // Last time we scaled the workers
@@ -47,23 +47,24 @@ func NewService(config *Config, auditSvc *audit.Service, redisQueue *queue.Redis
 func (s *Service) Start(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	fmt.Printf("Starting with %d workers (min: %d, max: %d) processing queue %s\n",
-		s.config.InitialWorkerCount, s.config.MinWorkerCount, s.config.MaxWorkerCount, s.config.QueueName)
+	slog.Info("Starting workers",
+		"initial", s.config.InitialWorkerCount,
+		"min", s.config.MinWorkerCount,
+		"max", s.config.MaxWorkerCount,
+		"queue", s.config.QueueName,
+	)
 
-	// initial start of monitoring with autoscaling support
 	wg.Add(1)
 	go s.monitorQueueWithAutoscaling(ctx, &wg)
 
-	// Start initial workers
 	s.scaleWorkers(ctx, &wg, s.config.InitialWorkerCount)
 
-	// Wait for all workers to finish
 	wg.Wait()
-	fmt.Println("All workers have been stopped.")
+	slog.Info("All workers stopped")
 	return nil
 }
 
-// monitorQueueWithAutoscaling - monitors the queue size periodically and manages worker autoscaling
+// monitorQueueWithAutoscaling monitors the queue size periodically and manages worker autoscaling
 func (s *Service) monitorQueueWithAutoscaling(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -80,38 +81,38 @@ func (s *Service) monitorQueueWithAutoscaling(ctx context.Context, wg *sync.Wait
 			queueLen, err := s.redisQueue.QueueLength(ctxQueueLen)
 			cancel()
 
-			if err == nil {
-				s.workerMutex.Lock()
-				activeWorkers := s.activeWorkers
-				s.workerMutex.Unlock()
+			if err != nil {
+				slog.Error("Error checking queue size", "error", err)
+				continue
+			}
 
-				fmt.Printf("[Monitor] Queue status %s: %d item(s), Active workers: %d\n",
-					s.config.QueueName, queueLen, activeWorkers)
+			s.workerMutex.Lock()
+			activeWorkers := s.activeWorkers
+			s.workerMutex.Unlock()
 
-				// Update metrics for autoscaling decisions
-				s.scalingMetrics.lastQueueSize = queueLen
+			slog.Info("Queue status",
+				"queue", s.config.QueueName,
+				"items", queueLen,
+				"active_workers", activeWorkers,
+			)
 
-				// Only consider scaling if autoscaling is enabled
-				if s.config.EnableAutoscaling {
-					timeSinceLastScale := time.Since(s.lastScaleTime)
+			s.scalingMetrics.lastQueueSize = queueLen
 
-					if timeSinceLastScale > s.config.CooldownPeriod {
-						fmt.Printf("[Autoscale] Cooldown period passed (%.1fs), evaluating scaling needs...\n",
-							timeSinceLastScale.Seconds())
+			if s.config.EnableAutoscaling {
+				timeSinceLastScale := time.Since(s.lastScaleTime)
+
+				if timeSinceLastScale > s.config.CooldownPeriod {
+					slog.Debug("Cooldown passed, evaluating scaling", "elapsed_s", timeSinceLastScale.Seconds())
+					s.evaluateScaling(ctx, wg, queueLen)
+				} else {
+					remaining := (s.config.CooldownPeriod - timeSinceLastScale).Seconds()
+					slog.Debug("In cooldown period", "remaining_s", remaining)
+
+					if queueLen > s.config.ScaleUpThreshold*5 && activeWorkers < s.config.MaxWorkerCount {
+						slog.Warn("Emergency scale: queue exceeds 5x threshold during cooldown")
 						s.evaluateScaling(ctx, wg, queueLen)
-					} else {
-						fmt.Printf("[Autoscale] In cooldown period (%.1fs remaining), waiting...\n",
-							(s.config.CooldownPeriod - timeSinceLastScale).Seconds())
-
-						// Emergency scale — queue is growing too fast, bypass cooldown
-						if queueLen > s.config.ScaleUpThreshold*5 && activeWorkers < s.config.MaxWorkerCount {
-							fmt.Printf("[Autoscale] EMERGENCY SCALE: Queue exceeds 5x threshold during cooldown, forcing scale up\n")
-							s.evaluateScaling(ctx, wg, queueLen)
-						}
 					}
 				}
-			} else {
-				fmt.Printf("[Monitor] Error checking queue size: %v\n", err)
 			}
 		}
 	}
@@ -121,66 +122,56 @@ func (s *Service) monitorQueueWithAutoscaling(ctx context.Context, wg *sync.Wait
 func (s *Service) runWorkerWithControl(ctx context.Context, id int, wg *sync.WaitGroup, stopChan <-chan bool) {
 	defer wg.Done()
 
-	fmt.Printf("Worker %d started\n", id)
+	slog.Info("Worker started", "worker_id", id)
 
-	// Ticker for periodic polling
 	ticker := time.NewTicker(s.config.PollDuration)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Printf("Worker %d stopped (context done)\n", id)
+			slog.Info("Worker stopped", "worker_id", id, "reason", "context_done")
 			return
 
 		case <-stopChan:
-			fmt.Printf("Worker %d stopped (autoscaling)\n", id)
+			slog.Info("Worker stopped", "worker_id", id, "reason", "autoscaling")
 			return
 
 		case <-ticker.C:
-			// Try to get an item from the queue with a short timeout
 			ctxDequeue, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			data, err := s.redisQueue.Dequeue(ctxDequeue)
 			cancel()
 
 			if err != nil {
-				// Ignore timeout errors during polling
 				if err.Error() == "context deadline exceeded" {
 					continue
 				}
-
-				fmt.Printf("Worker %d: Error dequeuing item: %v\n", id, err)
+				slog.Error("Error dequeuing item", "worker_id", id, "error", err)
 				continue
 			}
 
-			// If there's no data, continue silently
 			if data == nil {
 				continue
 			}
 
-			// Check queue size
 			ctxQueueLen, cancelQueueLen := context.WithTimeout(context.Background(), 1*time.Second)
 			queueLen, errQueueLen := s.redisQueue.QueueLength(ctxQueueLen)
 			cancelQueueLen()
 
-			queueSizeInfo := "unknown queue size"
-			if errQueueLen == nil {
-				queueSizeInfo = fmt.Sprintf("%d item(s) remaining in queue", queueLen)
-			}
-
-			// Process the item
 			var auditEvent audit.Audit
 			if err := json.Unmarshal(data, &auditEvent); err != nil {
-				fmt.Printf("Worker %d: Failed to deserialize event: %v\n", id, err)
+				slog.Error("Failed to deserialize event", "worker_id", id, "error", err)
 				continue
 			}
 
-			fmt.Printf("Worker %d: Processing event %s (%s)\n", id, auditEvent.ID, queueSizeInfo)
+			remaining := int64(0)
+			if errQueueLen == nil {
+				remaining = queueLen
+			}
+			slog.Info("Processing event", "worker_id", id, "event_id", auditEvent.ID, "queue_remaining", remaining)
 
-			// Try to process with retries
-			success := s.processWithRetry(id, auditEvent)
-			if !success {
-				fmt.Printf("Worker %d: Failed to process event after %d attempts\n", id, s.config.MaxRetries)
+			if !s.processWithRetry(id, auditEvent) {
+				slog.Error("Failed to process event after max retries", "worker_id", id, "event_id", auditEvent.ID, "max_retries", s.config.MaxRetries)
 			}
 		}
 	}
@@ -191,12 +182,11 @@ func (s *Service) processWithRetry(id int, auditEvent audit.Audit) bool {
 	for attempt := 0; attempt < s.config.MaxRetries; attempt++ {
 		err := s.auditSvc.CreateAudit(auditEvent)
 		if err == nil {
-			fmt.Printf("Worker %d: Event processed successfully %s\n", id, auditEvent.ID)
+			slog.Info("Event processed", "worker_id", id, "event_id", auditEvent.ID)
 			return true
 		}
-
-		fmt.Printf("Worker %d: Attempt %d failed: %v\n", id, attempt+1, err)
-		time.Sleep(2 * time.Second) // Wait before trying again
+		slog.Warn("Processing attempt failed", "worker_id", id, "attempt", attempt+1, "error", err)
+		time.Sleep(2 * time.Second)
 	}
 	return false
 }

@@ -8,11 +8,11 @@
 
 **Objetivo:** Eliminar a complexidade desnecessária do gqlgen e substituir pelo padrão REST já usado no restante do projeto.
 
-- [ ] Remover o diretório `graph/`
-- [ ] Remover o arquivo `gqlgen.yml`
-- [ ] Reescrever `cmd/api/reader/main.go` como servidor REST simples (Gin + rotas do `handler.go`)
-- [ ] Remover dependências `gqlgen` e `gqlparser` do `go.mod` / `go.sum`
-- [ ] Verificar que o frontend continua funcionando (já usa REST em `http://localhost:8080/audit`)
+- [x] Remover o diretório `graph/`
+- [x] Remover o arquivo `gqlgen.yml`
+- [x] Reescrever `cmd/api/reader/main.go` como servidor REST simples (Gin + rotas do `handler.go`)
+- [x] Remover dependências `gqlgen` e `gqlparser` do `go.mod` / `go.sum`
+- [x] Verificar que o frontend continua funcionando (já usa REST em `http://localhost:8080/audit`)
 
 **Notas:**
 - O `handler.go` já tem `List` e `Details` implementados e prontos para uso
@@ -24,15 +24,15 @@
 
 **Objetivo:** Tornar o `GET /audit` útil para consultas reais, não só paginação.
 
-- [ ] Adicionar filtros ao `repository.List()` via struct de filtros (GORM dynamic where)
-- [ ] Adicionar leitura dos query params no `handler.List()`
-- [ ] Filtros a implementar:
-  - [ ] `service_name` — filtrar por serviço
-  - [ ] `identifier` — filtrar por usuário/cliente
-  - [ ] `method` — filtrar por método HTTP (GET, POST, etc.)
-  - [ ] `status_code` — filtrar por código de resposta
-  - [ ] `start_date` / `end_date` — filtrar por período (formato ISO 8601)
-  - [ ] `environment` — filtrar por ambiente (prod, staging, dev)
+- [x] Adicionar filtros ao `repository.List()` via struct de filtros (GORM dynamic where)
+- [x] Adicionar leitura dos query params no `handler.List()`
+- [x] Filtros a implementar:
+  - [x] `service_name` — filtrar por serviço
+  - [x] `identifier` — filtrar por usuário/cliente
+  - [x] `method` — filtrar por método HTTP (GET, POST, etc.)
+  - [x] `status_code` — filtrar por código de resposta
+  - [x] `start_date` / `end_date` — filtrar por período (formato ISO 8601)
+  - [x] `environment` — filtrar por ambiente (prod, staging, dev)
 
 ---
 
@@ -42,11 +42,11 @@
 
 ### 3.1 Modelo de dados
 
-- [ ] Criar tabela `users` (id, name, email, password_hash, role, created_at)
-- [ ] Criar tabela `projects` (id, name, slug, created_by, created_at)
-- [ ] Criar tabela `project_members` (user_id, project_id, role) — vínculo entre usuário e projeto
-- [ ] Criar tabela `api_keys` (id, key_hash, project_id, name, created_at, expires_at, active)
-- [ ] Criar migrations para todas as tabelas acima
+- [x] Criar tabela `users` (id, name, email, password_hash, role, created_at)
+- [x] Criar tabela `projects` (id, name, slug, created_by, created_at)
+- [x] Criar tabela `project_members` (user_id, project_id, role) — vínculo entre usuário e projeto
+- [x] Criar tabela `api_keys` (id, key_hash, project_id, name, created_at, expires_at, active)
+- [x] Criar migrations para todas as tabelas acima
 
 **Roles:**
 | Role | Escopo | Permissões |
@@ -59,10 +59,10 @@
 
 > Zero configuração no frontend para começar — o projeto aparece automaticamente na primeira requisição.
 
-- [ ] No Writer, ao receber um evento com `service_name`, verificar se o projeto já existe
-- [ ] Se não existir, criar automaticamente associado à `api_key` usada na requisição
-- [ ] Se já existir, apenas associar o evento ao projeto
-- [ ] O `service_name` do modelo `Audit` é o identificador do projeto
+- [x] No Writer, ao receber um evento com `service_name`, verificar se o projeto já existe
+- [x] Se não existir, criar automaticamente associado à `api_key` usada na requisição
+- [x] Se já existir, apenas associar o evento ao projeto
+- [x] O `service_name` do modelo `Audit` é o identificador do projeto
 
 **Fluxo:**
 ```
@@ -71,51 +71,54 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 
 ### 3.3 Autenticação do dashboard (login com JWT)
 
-- [ ] Endpoint `POST /auth/login` — recebe email/senha, retorna JWT
-- [ ] Endpoint `POST /auth/logout` — invalida o token
-- [ ] Endpoint `GET /auth/me` — retorna dados do usuário logado
-- [ ] Middleware JWT no Reader que valida o token em todas as rotas protegidas
-- [ ] Tela de login no frontend (primeira tela antes do dashboard)
-- [ ] Setup inicial: na primeira execução, criar usuário owner via env vars ou wizard no frontend
+- [x] Endpoint `POST /auth/login` — recebe email/senha, retorna JWT
+- [x] Endpoint `POST /auth/logout` — invalida o token
+- [x] Endpoint `GET /auth/me` — retorna dados do usuário logado
+- [x] Middleware JWT no Reader que valida o token em todas as rotas protegidas
+- [x] Tela de login no frontend (primeira tela antes do dashboard)
+- [x] Setup inicial: na primeira execução, criar usuário owner via env vars ou wizard no frontend
 
 ### 3.4 Autenticação do SDK (API Key no Writer)
 
-- [ ] Middleware no Writer que valida o header `X-API-Key`
-- [ ] Retornar `401` para chaves inválidas/expiradas/inativas
-- [ ] Associar cada requisição ao projeto da API Key automaticamente
+- [x] Middleware no Writer que valida o header `X-API-Key`
+- [x] Retornar `401` para chaves inválidas/expiradas/inativas
+- [x] Associar cada requisição ao projeto da API Key automaticamente
 
 ### 3.5 Gerenciamento de usuários e projetos no frontend
 
-- [ ] Página de configurações do projeto (admin/owner)
-  - [ ] Listar e convidar membros (por email)
-  - [ ] Definir role de cada membro
-  - [ ] Remover membros
-- [ ] Página de API Keys
-  - [ ] Listar keys ativas
-  - [ ] Gerar nova key (exibe uma única vez)
-  - [ ] Revogar key existente
-- [ ] Seletor de projeto no header do dashboard
-  - [ ] Owner vê opção "Todos os projetos" (visão consolidada)
-  - [ ] Demais roles veem apenas os projetos aos quais têm acesso
+- [x] Página de configurações do projeto (admin/owner)
+  - [x] Listar e convidar membros (por email)
+  - [x] Definir role de cada membro
+  - [x] Remover membros
+- [x] Página de API Keys
+  - [x] Listar keys ativas
+  - [x] Gerar nova key (exibe uma única vez)
+  - [x] Revogar key existente
+- [x] Seletor de projeto no header do dashboard
+  - [x] Owner vê opção "Todos os projetos" (visão consolidada)
+  - [x] Demais roles veem apenas os projetos aos quais têm acesso
 
 ### 3.6 Visão consolidada do Owner
 
-- [ ] Owner pode selecionar "Todos os projetos" no seletor
-- [ ] Dashboard exibe métricas agregadas de todos os projetos
-- [ ] Event feed mostra eventos de todos os projetos com coluna `project` visível
-- [ ] Filtro por projeto disponível na visão consolidada
+- [x] Owner pode selecionar "Todos os projetos" no seletor
+- [x] Dashboard exibe métricas agregadas de todos os projetos
+- [x] Event feed mostra eventos de todos os projetos com coluna `project` visível
+- [x] Filtro por projeto disponível na visão consolidada
 
-### 3.7 Rate Limiting
+### 3.7 Rate Limiting *(somente se virar multi-tenant público)*
 
-- [ ] Adicionar middleware de rate limiting por API Key (ex: `ulule/limiter` com store Redis)
-- [ ] Configurar limite padrão (ex: 1000 req/hora por key)
-- [ ] Retornar `429 Too Many Requests` ao exceder
+> **Contexto:** Em um setup self-hosted onde você controla quem recebe API Key, rate limiting não agrega valor — o Redis + Worker autoscaling já absorvem picos naturalmente. Só faz sentido se o BatAudit for oferecido como SaaS com clientes externos não confiáveis.
+
+- [ ] Adicionar middleware de rate limiting por API Key (`ulule/limiter` com store Redis)
+- [ ] Configurar limite padrão configurável por projeto (ex: 1000 req/hora)
+- [ ] Retornar `429 Too Many Requests` com header `Retry-After`
+- [ ] Permitir override do limite por projeto (planos diferentes)
 
 ### 3.8 Separação de responsabilidades
 
-- [ ] Writer (`8081`) fica interno — autenticado apenas por API Key
-- [ ] Reader (`8082`) fica exposto — autenticado por JWT
-- [ ] Revisar Docker Compose para refletir essa separação
+- [x] Writer (`8081`) fica interno — autenticado apenas por API Key
+- [x] Reader (`8082`) fica exposto — autenticado por JWT
+- [x] Revisar Docker Compose para refletir essa separação (reader adicionado ao docker-compose.services.yml)
 
 ---
 
@@ -123,11 +126,11 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 
 **Objetivo:** Facilitar a integração por parte de desenvolvedores externos.
 
-- [ ] Adicionar Swagger/OpenAPI ao Reader usando `swaggo/swag`
-- [ ] Documentar todos os endpoints com exemplos de request/response
-- [ ] Documentar os filtros disponíveis
-- [ ] Documentar os códigos de erro (BAT-001, BAT-002, BAT-003)
-- [ ] Expor o Swagger UI em `/docs`
+- [x] Adicionar Swagger/OpenAPI ao Reader usando `swaggo/swag`
+- [x] Documentar todos os endpoints com exemplos de request/response
+- [x] Documentar os filtros disponíveis
+- [x] Documentar os códigos de erro (BAT-001, BAT-002, BAT-003)
+- [x] Expor o Swagger UI em `/docs`
 
 ---
 
@@ -140,9 +143,9 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 ### 5.1 Opção A — Derivar das auditorias existentes (sem mudar o modelo)
 > Recomendada como ponto de partida. Não quebra o contrato da API.
 
-- [ ] Criar endpoint `GET /audit/sessions` que agrupa eventos por `identifier` + janela de inatividade (ex: 30min sem atividade = sessão encerrada)
-- [ ] Retornar `session_start`, `session_end`, `duration_seconds`, `event_count` por sessão
-- [ ] Adicionar filtros: `identifier`, `service_name`, `start_date` / `end_date`
+- [x] Criar endpoint `GET /audit/sessions` que agrupa eventos por `identifier` + janela de inatividade (ex: 30min sem atividade = sessão encerrada)
+- [x] Retornar `session_start`, `session_end`, `duration_seconds`, `event_count` por sessão
+- [x] Adicionar filtros: `identifier`, `service_name`, `start_date` / `end_date`
 
 ### 5.2 Opção B — Rastreamento explícito via `session_id` (mudança de modelo)
 > Para quem precisar de maior precisão. Opt-in — quem não passar `session_id` continua funcionando.
@@ -160,27 +163,69 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 
 **Contexto:** O frontend atual é apenas uma lista paginada de eventos. Para se posicionar como alternativa self-hosted ao Datadog/Sentry para projetos menores, o dashboard precisa mostrar valor imediato ao ser instalado.
 
-### 6.1 Métricas e gráficos principais
-- [ ] Gráfico de volume de eventos por período (linha do tempo)
-- [ ] Taxa de erros em tempo real (status 4xx e 5xx)
-- [ ] Tempo de resposta médio por serviço
-- [ ] Top serviços mais ativos
-- [ ] Contadores de resumo no topo: total de eventos, erros, p95 de response time
+**Referência de layout:** O dashboard do retina-discord-scrapper é a referência visual. Estrutura: header fixo com título + timestamp do último evento + botão de refresh → linha de cards coloridos → tabela full-width de breakdown → split 50/50 com gráficos à esquerda e event feed à direita.
 
-### 6.2 Filtros no Event Feed
-- [ ] Implementar o botão "Filter" já existente no frontend
-- [ ] Filtrar por `service_name`, `method`, `status_code`, `environment`, `identifier`
-- [ ] Filtrar por período (`start_date` / `end_date`) com date picker
-- [ ] Persistir filtros na URL (query params) para compartilhamento
+### 6.1 Header do dashboard
 
-### 6.3 Detalhe de evento
-- [ ] Página/modal de detalhe ao clicar em um evento
-- [ ] Exibir todos os campos: `request_body`, `query_params`, `user_roles`, `ip`, `user_agent`, etc.
+- [x] Título do projeto (nome do `service_name` selecionado ou "Todos os projetos")
+- [x] Timestamp do último evento recebido: `Último evento: DD/MM/AA HH:MM`
+- [x] Botão "Atualizar" — recarrega os dados manualmente
+- [x] Auto-refresh a cada 60 segundos (sem reload de página)
 
-### 6.4 Visualização de sessões
-- [ ] Página de sessões por usuário (`identifier`)
-- [ ] Timeline de ações dentro de uma sessão
-- [ ] Duração total da sessão
+### 6.2 Cards de métricas (linha superior)
+
+> Inspiração direta nos cards do retina: background escuro, valor em fonte grande, cor semântica por tipo.
+
+- [x] **Total de eventos** (cor: roxo `#818cf8`)
+- [x] **Erros 4xx** — contagem + percentual do total (cor: laranja `#fb923c`)
+- [x] **Erros 5xx** — contagem + percentual do total (cor: vermelho `#f87171`)
+- [x] **Tempo médio de resposta** em ms (cor: azul `#60a5fa`)
+- [x] **p95 de response time** (cor: teal `#2dd4bf`)
+- [x] **Serviços ativos** — quantidade de `service_name` distintos (cor: verde `#34d399`)
+
+### 6.3 Tabela de breakdown por serviço (full-width, abaixo dos cards)
+
+> Equivalente à tabela "Por funcionalidade (tag)" do retina — mostra distribuição por dimensão principal.
+
+- [x] Colunas: `Serviço`, `Requisições`, `Erros (4xx+5xx)`, `Taxa de erro`, `Tempo médio`, `Último evento`
+- [x] Ordenável por qualquer coluna
+- [x] Linha com destaque ao hover (`background: #232640`)
+- [x] Badge colorido na coluna "Taxa de erro": verde se < 1%, laranja se < 5%, vermelho se ≥ 5%
+
+### 6.4 Layout split — gráficos à esquerda, event feed à direita
+
+> `grid-template-columns: 1fr 1fr` — colapsa para coluna única em telas < 900px.
+
+**Coluna esquerda — gráficos (empilhados verticalmente):**
+- [x] **Gráfico de área/linha** — volume de eventos por hora nas últimas 24h (Recharts shadcn)
+- [x] **Gráfico de barras empilhadas** — breakdown por `status_code` (2xx / 3xx / 4xx / 5xx) por período
+- [x] **Gráfico de donut** — distribuição de métodos HTTP (GET / POST / PUT / DELETE / PATCH)
+
+**Coluna direita — event feed:**
+- [x] Tabela dos últimos 50 eventos em ordem cronológica reversa
+- [x] Colunas: `Hora`, `Serviço`, `Método`, `Path`, `Status`, `Tempo`
+- [x] Badge de status com cor semântica: verde (2xx), azul (3xx), laranja (4xx), vermelho (5xx)
+- [x] Badge de método: cor neutra distinta por verbo HTTP
+- [x] Ao clicar na linha, abre modal/drawer com detalhe completo do evento
+
+### 6.5 Filtros no Event Feed
+
+- [x] Implementar o botão "Filter" já existente no frontend
+- [x] Filtrar por `service_name`, `method`, `status_code`, `environment`, `identifier`
+- [x] Filtrar por período (`start_date` / `end_date`) com date picker
+- [x] Persistir filtros na URL (query params) para compartilhamento
+
+### 6.6 Modal de detalhe de evento
+
+- [x] Abre ao clicar em qualquer linha do event feed
+- [x] Exibir todos os campos: `request_body`, `query_params`, `user_roles`, `ip`, `user_agent`, etc.
+- [x] Fechar com `Esc` ou clique fora do modal
+
+### 6.7 Visualização de sessões
+
+- [x] Página de sessões por usuário (`identifier`)
+- [x] Timeline de ações dentro de uma sessão
+- [x] Duração total da sessão
 
 ---
 
@@ -265,8 +310,8 @@ Browser gera request_id → envia requisição com X-Request-ID
 
 ### 9.1 Testes unitários (junto com o desenvolvimento)
 
-- [ ] Testes para `service.go` — validações, regras de negócio, cálculo de sessão
-- [ ] Testes para `sanitizer.go` e `validator.go` — detecção e mascaramento de dados sensíveis
+- [x] Testes para `service.go` — validações, regras de negócio, cálculo de sessão
+- [x] Testes para `sanitizer.go` e `validator.go` — detecção e mascaramento de dados sensíveis
 - [ ] Testes para lógica de correlação de `request_id` (orphans)
 - [ ] Testes para o SDK Node.js — geração de `request_id`, captura de campos, modo Lambda
 
@@ -306,11 +351,11 @@ mock-app/
 
 > Popula o banco com dados variados para conseguir visualizar todos os gráficos, filtros e métricas do dashboard sem precisar gerar eventos manualmente.
 
-- [ ] Criar script `scripts/seed.go` ou `scripts/seed.sh`
-- [ ] Gerar dados para múltiplos projetos e serviços
-- [ ] Cobrir variações de: `method`, `status_code`, `environment`, `response_time`, `user_roles`
-- [ ] Distribuição temporal realista — eventos espalhados nos últimos 30 dias
-- [ ] Incluir cenários de pico (muitos erros em um período) para testar alertas visuais
+- [x] Criar script `scripts/seed.go` ou `scripts/seed.sh`
+- [x] Gerar dados para múltiplos projetos e serviços
+- [x] Cobrir variações de: `method`, `status_code`, `environment`, `response_time`, `user_roles`
+- [x] Distribuição temporal realista — eventos espalhados nos últimos 30 dias
+- [x] Incluir cenários de pico (muitos erros em um período) para testar alertas visuais
 - [ ] Incluir eventos órfãos (browser sem backend) para testar a detecção de orphans
 
 ---
@@ -319,14 +364,26 @@ mock-app/
 
 **Objetivo:** Reformular completamente o visual do dashboard para um estilo moderno, com suporte a dark e light mode, usando shadcn/ui como base.
 
-**Contexto:** O estilo de referência foi identificado em 3 arquivos da comunidade Figma (links abaixo). Os detalhes do estilo ainda precisam ser extraídos — screenshots ou tokens de design precisam ser compartilhados para iniciar a implementação.
+**Contexto:** O estilo de referência visual foi identificado no dashboard do retina-discord-scrapper (paleta dark `#0f1117` / `#1e2130` / `#2d3350`) e em 3 arquivos da comunidade Figma (links abaixo). Os tokens de cor já estão mapeados na Fase 6 — esta fase é sobre aplicar o redesign completo em cima do dashboard funcional.
 
 **Referências Figma:**
 - https://www.figma.com/community/file/1554529095872857492
 - https://www.figma.com/community/file/1564725760418771079
 - https://www.figma.com/community/file/1580994817007013257
 
-> **Pendente:** compartilhar screenshots ou descrever o que agrada em cada referência antes de iniciar esta fase.
+**Paleta de referência (retina):**
+```
+Background:  #0f1117
+Surface:     #1e2130
+Border:      #2d3350
+Text muted:  #64748b / #475569 / #94a3b8
+Purple:      #818cf8   (métricas gerais)
+Green:       #34d399   (sucesso / IBBX)
+Red:         #f87171   (erro / externo)
+Blue:        #60a5fa   (info)
+Teal:        #2dd4bf   (p95 / tempo)
+Orange:      #fb923c   (warning / 4xx)
+```
 
 ### 10.1 Design tokens
 
@@ -363,37 +420,38 @@ mock-app/
 
 Hoje o projeto usa `fmt.Printf` / `fmt.Println` em todo lugar. Em produção isso é inútil — sem nível de log, sem contexto, sem como filtrar. Trocar por `slog` (padrão da stdlib Go desde 1.21) antes de adicionar mais código.
 
-- [ ] Substituir todos os `fmt.Printf` / `fmt.Println` em `cmd/api/writer/main.go` por `slog`
-- [ ] Substituir todos em `cmd/api/reader/main.go`
-- [ ] Substituir todos em `cmd/api/worker/main.go`
-- [ ] Substituir todos em `internal/worker/service.go`
-- [ ] Substituir todos em `internal/worker/autoscale.go`
-- [ ] Substituir todos em `internal/worker/helpers.go`
-- [ ] Substituir todos em `internal/db/db.go`
-- [ ] Configurar nível de log via variável de ambiente (`LOG_LEVEL=debug|info|warn|error`)
+- [x] Substituir todos os `fmt.Printf` / `fmt.Println` em `cmd/api/writer/main.go` por `slog`
+- [x] Substituir todos em `cmd/api/reader/main.go`
+- [x] Substituir todos em `cmd/api/worker/main.go`
+- [x] Substituir todos em `internal/worker/service.go`
+- [x] Substituir todos em `internal/worker/autoscale.go`
+- [x] Substituir todos em `internal/worker/helpers.go`
+- [x] Substituir todos em `internal/db/db.go`
+- [x] Configurar nível de log via variável de ambiente (`LOG_LEVEL=debug|info|warn|error`)
 
 ### Backend — tratar panics no db.go
 
 O `db.go` usa `panic` em 5 pontos diferentes (falha de config, migration, conexão). Em um servidor isso derruba o processo inteiro. Substituir por retorno de erro tratado no `main.go`.
 
-- [ ] Transformar `Init()` para retornar `(*gorm.DB, error)` em vez de usar `panic`
-- [ ] Tratar o erro no `main.go` de cada serviço com log + `os.Exit(1)` limpo
-- [ ] Idem para `RunMigrations()` — já retorna erro mas o caller faz `panic` em vez de tratar
+- [x] Transformar `Init()` para retornar `(*gorm.DB, error)` em vez de usar `panic`
+- [x] Tratar o erro no `main.go` de cada serviço com log + `os.Exit(1)` limpo
+- [x] Idem para `RunMigrations()` — já retorna erro mas o caller faz `panic` em vez de tratar
 
 ### Versionamento da API
 
 Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro de mudar depois quando o SDK já estiver em uso.
 
-- [ ] Adicionar prefixo `/v1` em todas as rotas do Writer (`/v1/audit`)
-- [ ] Adicionar prefixo `/v1` em todas as rotas do Reader (`/v1/audit`, `/v1/auth`, etc.)
-- [ ] Atualizar o frontend para usar as rotas versionadas
+- [x] Adicionar prefixo `/v1` em todas as rotas do Writer (`/v1/audit`)
+- [x] Adicionar prefixo `/v1` em todas as rotas do Reader (`/v1/audit`, `/v1/auth`, etc.)
+- [x] Atualizar o frontend para usar as rotas versionadas
 - [ ] Documentar no README que a API é versionada
 
 ### Frontend — URL hardcoded e erros silenciosos
 
-- [ ] Remover `http://localhost:8080` hardcoded de `frontend/src/http/audit/list.tsx`
-- [ ] Criar variável de ambiente `VITE_API_URL` e usar em todas as chamadas HTTP
-- [ ] Adicionar tratamento de erro nas chamadas `useQuery` — exibir mensagem ao usuário em vez de tela em branco quando a API falhar
+- [x] Remover `http://localhost:8080` hardcoded de `frontend/src/http/audit/list.tsx`
+- [x] Criar variável de ambiente `VITE_API_URL` e usar em todas as chamadas HTTP
+- [x] Adicionar tratamento de erro nas chamadas `useQuery` — exibir mensagem ao usuário em vez de tela em branco quando a API falhar
+- [x] Separar camadas do frontend: `src/http/` para funções fetch, `src/queries/` para hooks `useQuery`/`useMutation`
 
 ---
 
@@ -431,10 +489,23 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 
 ---
 
+## Bugfixes (revisão de código)
+
+Bugs identificados na revisão de código pós-implementação.
+
+- [x] **CRÍTICO** — Remover método `RegisterRoutes` obsoleto em `internal/audit/handler.go` (deixar só `RegisterReadRoutes`)
+- [x] **MÉDIO** — Corrigir typo em `event-card.tsx`: `h- w-4` → `h-4 w-4` (ícone `<User>` renderizava sem altura)
+- [x] **MÉDIO** — Remover export `ALL_PROJECTS` não utilizado em `project-context.tsx` (`null` é usado para "Todos os projetos")
+- [x] **MÉDIO** — Tratar erro ignorado `sqlDB, _ := conn.DB()` no reader e writer `main.go` (falha silenciosa no close)
+- [x] **BAIXO** — `CreateUser` retornava `ErrEmailTaken` para qualquer erro de DB — corrigido para propagar erro real quando não é violação de unique constraint
+- [x] **BAIXO** — `CreateProject` retornava `ErrSlugTaken` para qualquer erro de DB — corrigido idem
+
+---
+
 ## Fase 11 — Melhorias gerais (backlog)
 
-- [ ] Adicionar endpoint `GET /audit/stats` — resumo agregado (total por serviço, por método, erros, etc.)
-- [ ] Suporte a ordenação na listagem (`sort_by`, `sort_order`)
+- [x] Adicionar endpoint `GET /audit/stats` — resumo agregado (total por serviço, por método, erros, etc.)
+- [x] Suporte a ordenação na listagem (`sort_by`, `sort_order`)
 - [ ] Internacionalizar mensagens de erro (hoje misturadas em PT e EN)
 
 ---

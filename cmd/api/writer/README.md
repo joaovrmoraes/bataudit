@@ -1,13 +1,11 @@
 # Writer
 
-HTTP API responsible for receiving audit events, validating and sanitizing them, then enqueuing them to Redis for asynchronous processing.
+HTTP API responsible for receiving audit events from SDKs, validating and sanitizing them, then enqueuing them to Redis for asynchronous processing.
 
-## Responsibility
-
-The Writer is the **entry point** for all audit data. It is the only service that accepts writes from external clients (SDKs, integrations). It never writes directly to the database — it delegates persistence to the Worker via a Redis queue.
+> Authenticated by API Key (`X-API-Key` header). Never accepts JWT tokens.
 
 ```
-Client → POST /audit → Writer → Redis queue
+SDK / Application → POST /v1/audit (X-API-Key) → Writer → Redis queue
 ```
 
 ## Port
@@ -16,11 +14,19 @@ Client → POST /audit → Writer → Redis queue
 |---|---|
 | `API_WRITER_PORT` | `8081` |
 
+---
+
 ## Endpoints
 
-### `POST /audit`
+### `POST /v1/audit`
 
 Receives a new audit event.
+
+**Headers:**
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-API-Key` | Yes | API key tied to a project |
 
 **Request body:**
 
@@ -51,7 +57,7 @@ Receives a new audit event.
 
 **Required fields:** `method`, `path`, `identifier`, `service_name`, `environment`, `timestamp`
 
-**Accepted methods:** `GET`, `POST`, `PUT`, `DELETE`
+**Accepted methods:** `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
 
 **Accepted environments:** `production`, `staging`, `development`, `testing`, `local`
 
@@ -73,66 +79,57 @@ Receives a new audit event.
 |---|---|---|
 | `BAT-001` | 400 | Invalid JSON format |
 | `BAT-002` | 400 | Validation failed (missing/invalid fields) |
-| `BAT-003` | 500 | Failed to enqueue the event to Redis |
+| `BAT-003` | 500 | Failed to enqueue — Redis unavailable |
+| — | 401 | Missing or invalid API key |
 
 ---
 
 ### `GET /health`
 
-Returns the health status of the service and its dependencies.
+Returns service health status.
 
-```json
-{
-  "status": "OK",
-  "api_response_ms": 1,
-  "db_response_ms": 3,
-  "db_status": "connected",
-  "environment": "development",
-  "version": "1.0.0"
-}
-```
+---
 
-## Data pipeline before enqueue
+## Data pipeline
 
 Every event goes through these steps before being enqueued:
 
-1. **JSON parsing** — validates that the body is valid JSON
-2. **Timestamp** — if not provided, sets `timestamp = now()`
-3. **Sanitization** — strips control characters, escapes HTML, normalizes strings
-4. **Sensitive data detection** — scans `request_body` and `query_params` for patterns matching credit card numbers, passwords, API keys
-5. **Masking** — if sensitive data is detected, replaces values with `********`
-6. **Validation** — validates required fields, formats (email, IP, UUID), and value ranges
-7. **ID generation** — generates `id` (UUID) and `request_id` (`bat-<uuid>`) if not provided
-8. **Enqueue** — serializes to JSON and pushes to Redis with a 5-second timeout
+1. **API Key validation** — rejects unknown/expired/inactive keys with `401`
+2. **JSON parsing** — rejects malformed bodies with `BAT-001`
+3. **Timestamp** — defaults to `now()` if not provided
+4. **Sanitization** — strips control characters, escapes HTML, normalizes strings
+5. **Sensitive data detection** — scans `request_body` and `query_params` for credit card numbers, passwords (`password`, `passwd`, `pwd`, `secret`), API keys
+6. **Masking** — replaces detected values with `********`
+7. **Validation** — validates required fields, formats (email, IP, UUID), and value ranges
+8. **ID generation** — generates `id` (UUID) and `request_id` (`bat-<uuid>`) if not provided
+9. **Auto-project resolution** — resolves or creates a project from `service_name` + API key
+10. **Enqueue** — pushes to Redis with a 5-second context timeout
+
+---
 
 ## Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `API_WRITER_PORT` | `8081` | Port the server listens on |
-| `REDIS_ADDRESS` | `localhost:6379` | Redis connection address |
-| `DB_DRIVER` | `postgres` | Database driver |
-| `DB_HOST` | `localhost` | Database host |
-| `DB_PORT` | `5432` | Database port |
-| `DB_USER` | — | Database user |
-| `DB_PASSWORD` | — | Database password |
-| `DB_NAME` | — | Database name |
-| `GIN_MODE` | `debug` | Gin mode (`debug` or `release`) |
+| `API_WRITER_PORT` | `8081` | Port |
+| `JWT_SECRET` | `change-me-in-production` | Used to verify API key middleware |
+| `REDIS_ADDRESS` | `localhost:6379` | Redis connection |
+| `DB_DRIVER` | `postgres` | `postgres` or `sqlite` |
+| `DB_HOST` | `localhost` | |
+| `DB_PORT` | `5432` | |
+| `DB_USER` | — | |
+| `DB_PASSWORD` | — | |
+| `DB_NAME` | — | |
+| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 
-## Dependencies
-
-- **PostgreSQL** — used for auto-migration on startup and health checks
-- **Redis** — target queue for audit events (`bataudit:events`)
-
-Both connections are retried up to 5 times with a 5-second interval before the service exits.
+---
 
 ## Running locally
 
 ```bash
-# Start dependencies
 docker compose up -d postgres redis
 
-# Run
+JWT_SECRET=change-me \
 DB_HOST=localhost DB_USER=batuser DB_PASSWORD=batpassword DB_NAME=batdb \
   go run ./cmd/api/writer
 ```

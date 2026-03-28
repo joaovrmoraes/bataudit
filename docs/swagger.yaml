@@ -1,0 +1,749 @@
+basePath: /v1
+definitions:
+  audit.Audit:
+    type: object
+  audit.AuditStats:
+    properties:
+      active_services:
+        type: integer
+      avg_response_time:
+        type: number
+      by_method:
+        additionalProperties:
+          type: integer
+        type: object
+      by_service:
+        items:
+          $ref: '#/definitions/audit.ServiceBreakdown'
+        type: array
+      by_status_class:
+        additionalProperties:
+          type: integer
+        type: object
+      errors_4xx:
+        type: integer
+      errors_5xx:
+        type: integer
+      last_event_at:
+        type: string
+      p95_response_time:
+        type: number
+      timeline:
+        items:
+          $ref: '#/definitions/audit.TimelinePoint'
+        type: array
+      total:
+        type: integer
+    type: object
+  audit.HTTPMethod:
+    enum:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    type: string
+    x-enum-varnames:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+  audit.ServiceBreakdown:
+    properties:
+      avg_response_time:
+        type: number
+      errors:
+        type: integer
+      last_event:
+        type: string
+      requests:
+        type: integer
+      service_name:
+        type: string
+    type: object
+  audit.TimelinePoint:
+    properties:
+      count:
+        type: integer
+      hour:
+        type: string
+    type: object
+  auth.Project:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  auth.UserRole:
+    enum:
+    - owner
+    - admin
+    - viewer
+    type: string
+    x-enum-varnames:
+    - RoleOwner
+    - RoleAdmin
+    - RoleViewer
+  auth.addMemberRequest:
+    properties:
+      email:
+        type: string
+      role:
+        $ref: '#/definitions/auth.UserRole'
+    required:
+    - email
+    - role
+    type: object
+  auth.createAPIKeyRequest:
+    properties:
+      name:
+        maxLength: 128
+        minLength: 1
+        type: string
+      project_id:
+        type: string
+    required:
+    - name
+    - project_id
+    type: object
+  auth.createProjectRequest:
+    properties:
+      name:
+        maxLength: 128
+        minLength: 1
+        type: string
+      slug:
+        maxLength: 128
+        minLength: 1
+        type: string
+    required:
+    - name
+    - slug
+    type: object
+  auth.loginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.updateMemberRoleRequest:
+    properties:
+      role:
+        $ref: '#/definitions/auth.UserRole'
+    required:
+    - role
+    type: object
+host: localhost:8082
+info:
+  contact:
+    name: BatAudit
+  description: Self-hosted audit logging platform. Collect, store and query audit
+    events from any service.
+  license:
+    name: MIT
+  title: BatAudit API
+  version: "1.0"
+paths:
+  /audit:
+    get:
+      description: Returns a paginated list of audit events with optional filters
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by project ID
+        in: query
+        name: project_id
+        type: string
+      - description: Filter by service name
+        in: query
+        name: service_name
+        type: string
+      - description: Filter by user/client identifier
+        in: query
+        name: identifier
+        type: string
+      - description: Filter by HTTP method (GET, POST, PUT, DELETE, PATCH)
+        in: query
+        name: method
+        type: string
+      - description: Filter by HTTP status code
+        in: query
+        name: status_code
+        type: integer
+      - description: Filter by environment (prod, staging, dev)
+        in: query
+        name: environment
+        type: string
+      - description: Filter from date (ISO 8601)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter to date (ISO 8601)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List audit events
+      tags:
+      - audit
+    post:
+      consumes:
+      - application/json
+      description: Receives an audit event from an SDK, validates and queues it for
+        processing. Requires X-API-Key header.
+      parameters:
+      - description: API Key
+        in: header
+        name: X-API-Key
+        required: true
+        type: string
+      - description: Audit event
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/audit.Audit'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 'BAT-001: invalid JSON / BAT-002: validation failed'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid or missing API key
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 'BAT-003: queue unavailable'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Ingest audit event
+      tags:
+      - ingest
+  /audit/{id}:
+    get:
+      description: Returns full details of a single audit event by ID
+      parameters:
+      - description: Audit event UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/audit.Audit'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get audit event
+      tags:
+      - audit
+  /audit/sessions:
+    get:
+      description: Returns derived user sessions using a 30-minute inactivity gap
+        algorithm
+      parameters:
+      - description: Filter by project ID
+        in: query
+        name: project_id
+        type: string
+      - description: Filter by user/client identifier
+        in: query
+        name: identifier
+        type: string
+      - description: Filter by service name
+        in: query
+        name: service_name
+        type: string
+      - description: Filter from date (ISO 8601)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter to date (ISO 8601)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List sessions
+      tags:
+      - audit
+  /audit/stats:
+    get:
+      description: 'Returns aggregated metrics: totals, error rates, response times
+        (avg + p95), active services, 24h timeline, breakdown by service/status/method'
+      parameters:
+      - description: Filter by project ID (omit for all projects)
+        in: query
+        name: project_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/audit.AuditStats'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Audit statistics
+      tags:
+      - audit
+  /auth/api-keys:
+    get:
+      description: Returns all API keys for a project
+      parameters:
+      - description: Project ID
+        in: query
+        name: project_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List API keys
+      tags:
+      - api-keys
+    post:
+      consumes:
+      - application/json
+      description: Generates a new API key for a project. The raw key is shown only
+        once.
+      parameters:
+      - description: API key data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.createAPIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create API key
+      tags:
+      - api-keys
+  /auth/api-keys/{id}:
+    delete:
+      description: Marks an API key as inactive — it will no longer be accepted by
+        the Writer
+      parameters:
+      - description: API Key ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Revoke API key
+      tags:
+      - api-keys
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Invalidates the current session (client should discard the token)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns the authenticated user's info from the JWT
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Current user
+      tags:
+      - auth
+  /auth/projects:
+    get:
+      description: Returns all projects the current user has access to. Owner sees
+        all projects.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List projects
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      description: Creates a new project
+      parameters:
+      - description: Project data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.createProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.Project'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create project
+      tags:
+      - projects
+  /auth/projects/{id}/members:
+    get:
+      description: Returns all members of a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List project members
+      tags:
+      - members
+    post:
+      consumes:
+      - application/json
+      description: Adds a user (by email) to a project with the specified role
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Member data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.addMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add project member
+      tags:
+      - members
+  /auth/projects/{id}/members/{userId}:
+    delete:
+      description: Removes a user from a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove project member
+      tags:
+      - members
+    patch:
+      consumes:
+      - application/json
+      description: Changes the role of an existing project member
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: New role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.updateMemberRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update member role
+      tags:
+      - members
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

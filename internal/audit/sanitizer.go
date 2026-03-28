@@ -179,7 +179,7 @@ func MaskSensitiveData(audit *Audit) {
 			return "************" + strings.Join(digits[len(digits)-4:], "")
 		})
 
-		passwordPattern := regexp.MustCompile(`(?i)"(password|senha|secret)"\s*:\s*"[^"]*"`)
+		passwordPattern := regexp.MustCompile(`(?i)"(password|passwd|senha|secret|pwd)"\s*:\s*"[^"]*"`)
 		dataStr = passwordPattern.ReplaceAllString(dataStr, `"$1":"********"`)
 
 		tokenPattern := regexp.MustCompile(`(?i)"(api[-_]?key|token|secret[-_]?key)"\s*:\s*"[^"]*"`)

@@ -10,12 +10,14 @@ export interface HealthResponse {
 }
 
 export async function getHealthDetails(): Promise<HealthResponse> {
-    const response = await fetch('http://localhost:8080/health', {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         },
     });
+
+    if (!response.ok) throw new Error('Failed to fetch health status')
 
     return await response.json();
 }

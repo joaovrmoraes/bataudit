@@ -1,104 +1,172 @@
-# 🦇 BatAudit
+# BatAudit
 
-> Lightweight, extensible, and self-hosted auditing for your applications — focused on simplicity, traceability, and privacy.
+> Lightweight, self-hosted audit logging platform — collect, store and query audit events from any application.
+
 ---
-## 📌 What is BatAudit?
 
-**BatAudit** is a self-hosted auditing solution developed in Go with a React web interface. It allows any application (regardless of language) to send logs of user actions, errors, execution times, and other important tracking information in a centralized way.
+## What is BatAudit?
 
-## 🐳 Running with Docker and Locally
+BatAudit is a self-hosted auditing solution built in Go with a React dashboard. Any application (regardless of language) sends HTTP events to the Writer; they are validated, sanitized, queued in Redis, persisted to PostgreSQL by the Worker, and instantly visible in the dashboard served by the Reader.
 
-This project supports two execution modes:
-1. **Local**: Running services directly on your machine
-2. **Docker**: Running services in Docker containers
+```
+SDK / Application
+      │
+      ▼ POST /v1/audit  (X-API-Key)
+┌──────────┐      ┌─────────┐      ┌────────────┐
+│  Writer  │─────▶│  Redis  │─────▶│   Worker   │─────▶ PostgreSQL
+│  :8081   │      │  queue  │      │ (consumer) │
+└──────────┘      └─────────┘      └────────────┘
+                                                          │
+                                                          ▼
+┌──────────┐      ┌────────────┐
+│  Reader  │◀─────│ PostgreSQL │
+│  :8082   │      └────────────┘
+└──────────┘
+      │
+      ▼  JWT auth
+Dashboard / Integrations
+```
 
-### Docker Structure
+---
 
-The project uses two Docker Compose files:
+## Services
 
-- `docker-compose.yml`: Infrastructure only (Redis and PostgreSQL)
-- `docker-compose.services.yml`: Infrastructure + services (Writer and Worker)
+| Service | Port | Responsibility |
+|---------|------|----------------|
+| Writer  | 8081 | Receives events from SDKs (API Key auth), enqueues to Redis |
+| Worker  | —    | Consumes Redis queue, persists to PostgreSQL |
+| Reader  | 8082 | Serves dashboard + REST API (JWT auth) + Swagger UI |
 
-### Makefile Commands
+---
 
-The Makefile provides several useful commands:
+## Running
+
+### Prerequisites
+
+- Docker + Docker Compose
+- Go 1.24+
+- Node.js 20+ with pnpm (frontend)
+
+### Infrastructure only (postgres + redis)
 
 ```bash
-# List all available commands
-make help
-
-# Build Docker images for services
-make build-all
-
-# Start infrastructure only (Redis and PostgreSQL)
-make run-infra
-
-# Start services only (Writer and Worker)
-make run-services
-
-# Start everything (infrastructure + services)
-make run-all
-
-# Stop all containers
-make stop-all
-
-# Clean Docker images
-make clean
+docker compose up -d
 ```
 
-### Running Locally
-
-#### Windows
-```
-# Start infrastructure only
-docker-compose up -d
-
-# Run Writer
-.\run-writer.bat
-
-# Run Worker
-.\run-worker.bat
-```
-
-#### Linux/Mac
-```
-# Start infrastructure only
-docker-compose up -d
-
-# Run Writer
-chmod +x run-writer.sh
-./run-writer.sh
-
-# Run Worker
-chmod +x run-worker.sh
-./run-worker.sh
-```
-
-### Execution Options
-
-#### Option 1: Infrastructure Only in Docker
-Run `make run-infra` or `docker-compose up -d` to start only Redis and PostgreSQL. Then, run the local scripts `run-writer.bat/sh` and `run-worker.bat/sh` to start the services locally.
-
-#### Option 2: Everything in Docker
-Run `make run-all` or `docker-compose -f docker-compose.services.yml up -d` to start the entire stack in Docker.
-
-#### Option 3: Mixed Mode
-Run `make run-infra` to start the infrastructure, then start the service containers individually as needed:
+### Full stack in Docker
 
 ```bash
-docker-compose -f docker-compose.services.yml up -d writer
-docker-compose -f docker-compose.services.yml up -d worker
+docker compose -f docker-compose.services.yml up -d
 ```
 
-### Containers
+### Locally (backend)
 
-- **Redis**: Available at `localhost:6379`
-- **PostgreSQL**: Available at `localhost:5432`
-- **Writer API**: Available at `localhost:8081`
-- **Worker**: Automatically processes events from the Redis queue
+```bash
+# Writer
+DB_HOST=localhost DB_USER=batuser DB_PASSWORD=batpassword DB_NAME=batdb \
+  go run ./cmd/api/writer
 
-### Notes
+# Worker
+DB_HOST=localhost DB_USER=batuser DB_PASSWORD=batpassword DB_NAME=batdb \
+  go run ./cmd/api/worker
 
-- Containers use Alpine images for reduced size
-- Environment settings can be changed in the scripts or docker-compose files
-- Compilation uses optimizations for size reduction
+# Reader
+JWT_SECRET=change-me \
+DB_HOST=localhost DB_USER=batuser DB_PASSWORD=batpassword DB_NAME=batdb \
+  go run ./cmd/api/reader
+```
+
+### Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev        # dev server at http://localhost:5173
+pnpm build      # production build → dist/
+```
+
+### Seed (development data)
+
+```bash
+# Populates the database with ~3000 realistic audit events over 30 days
+DB_HOST=localhost DB_USER=batuser DB_PASSWORD=batpassword DB_NAME=batdb \
+  go run scripts/seed.go
+```
+
+---
+
+## Initial setup
+
+Set env vars to create the first owner account on startup:
+
+```bash
+INITIAL_OWNER_EMAIL=admin@example.com
+INITIAL_OWNER_PASSWORD=changeme
+INITIAL_OWNER_NAME=Admin
+```
+
+Or use the setup wizard on first access at `http://localhost:8082/app`.
+
+---
+
+## Makefile
+
+```bash
+make build-all     # Build Docker images
+make run-infra     # Start Redis + PostgreSQL only
+make run-services  # Start Writer + Worker + Reader
+make run-all       # Start everything
+make stop-all      # Stop all containers
+make clean         # Remove Docker images
+```
+
+---
+
+## API
+
+All routes are prefixed with `/v1`.
+
+| Auth method | Used by | Header |
+|-------------|---------|--------|
+| API Key     | Writer  | `X-API-Key: <key>` |
+| JWT Bearer  | Reader  | `Authorization: Bearer <token>` |
+
+Interactive docs available at `http://localhost:8082/docs/index.html` (Swagger UI).
+
+---
+
+## Project structure
+
+```
+bataudit/
+├── cmd/
+│   └── api/
+│       ├── writer/       # Writer service entrypoint
+│       ├── reader/       # Reader service entrypoint
+│       └── worker/       # Worker service entrypoint
+├── internal/
+│   ├── audit/            # Core domain: model, repository, service, handler
+│   │   ├── sanitizer.go  # XSS + sensitive data detection and masking
+│   │   └── validator.go  # Custom field validators (IP, UUID, env, ...)
+│   ├── auth/             # Auth domain: JWT, API keys, users, projects, members
+│   ├── db/               # Database init + migrations
+│   ├── queue/            # Redis queue abstraction
+│   ├── worker/           # Queue consumer + autoscaler
+│   ├── health/           # Health check endpoint
+│   └── config/           # Env var helpers
+├── docs/                 # Auto-generated Swagger (swaggo/swag)
+├── frontend/             # React dashboard
+├── scripts/
+│   └── seed.go           # Development data seed script
+└── docker-compose*.yml
+```
+
+---
+
+## Tests
+
+```bash
+go test ./internal/audit/...
+```
+
+73 unit tests covering `sanitizer.go`, `validator.go`, and `service.go`.

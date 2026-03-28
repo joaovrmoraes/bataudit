@@ -32,6 +32,36 @@ services:
       retries: 5
       start_period: 30s
 
+  reader:
+    build:
+      context: .
+      dockerfile: cmd/api/reader/Dockerfile
+    container_name: bat_reader
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=batuser
+      - DB_PASSWORD=batpassword
+      - DB_NAME=batdb
+      - JWT_SECRET=change-me-in-production
+      - GIN_MODE=release
+      - API_READER_PORT=8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure:3
+    networks:
+      - bataudit-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+
   worker:
     build:
       context: .
