@@ -45,7 +45,11 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(audit *Audit) error {
-	return r.db.Create(audit).Error
+	db := r.db
+	if audit.ProjectID == "" {
+		db = db.Omit("ProjectID")
+	}
+	return db.Create(audit).Error
 }
 
 func (r *repository) List(limit, offset int, filters ListFilters) (ListResult, error) {

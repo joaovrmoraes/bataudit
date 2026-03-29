@@ -95,7 +95,11 @@ func (r *repository) CountUsers() (int64, error) {
 // --- Projects ---
 
 func (r *repository) CreateProject(project *Project) error {
-	if err := r.db.Create(project).Error; err != nil {
+	db := r.db
+	if project.CreatedBy == "" {
+		db = db.Omit("CreatedBy")
+	}
+	if err := db.Create(project).Error; err != nil {
 		if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate key") {
 			return ErrSlugTaken
 		}
