@@ -43,9 +43,7 @@ services:
   # ── BatAudit services ────────────────────────────────────────────────────────
 
   writer:
-    build:
-      context: .
-      dockerfile: cmd/api/writer/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/writer:latest
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -80,9 +78,7 @@ services:
       start_period: 30s
 
   reader:
-    build:
-      context: .
-      dockerfile: cmd/api/reader/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/reader:latest
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -114,9 +110,7 @@ services:
       start_period: 30s
 
   worker:
-    build:
-      context: .
-      dockerfile: cmd/api/worker/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/worker:latest
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -144,9 +138,7 @@ services:
       - bataudit
 
   seeder:
-    build:
-      context: .
-      dockerfile: cmd/tools/seed/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/seeder:latest
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres

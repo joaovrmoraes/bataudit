@@ -59,7 +59,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 	t.Cleanup(func() {
 		sqlDB, _ := db.DB()
-		db.Exec("TRUNCATE TABLE audits RESTART IDENTITY CASCADE")
+		db.Exec("TRUNCATE TABLE audits, api_keys, project_members, projects, users RESTART IDENTITY CASCADE")
 		sqlDB.Close()
 	})
 
