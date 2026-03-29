@@ -9,4 +9,5 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /seeder .
+COPY --from=builder /app/internal/db/migrations ./internal/db/migrations
 CMD ["./seeder"]

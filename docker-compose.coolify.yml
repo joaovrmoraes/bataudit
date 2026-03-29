@@ -1,0 +1,152 @@
+## BatAudit — Coolify Deployment
+## Coolify → New Resource → Docker Compose → connect this repo → set env vars below
+##
+## Required env vars (set in Coolify UI):
+##   DB_PASSWORD      — strong password for postgres
+##   JWT_SECRET       — random secret (e.g. openssl rand -hex 32)
+##   INITIAL_OWNER_EMAIL    — your login email
+##   INITIAL_OWNER_PASSWORD — your login password
+##
+## The dashboard will be served by the "reader" service on port 8082.
+## In Coolify, assign your domain to the reader service (port 8082).
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: bitnami/postgresql:latest
+    environment:
+      - POSTGRESQL_USERNAME=${DB_USER:-batuser}
+      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+      - POSTGRESQL_DATABASE=${DB_NAME:-batdb}
+    volumes:
+      - postgres_data:/bitnami/postgresql
+    networks:
+      - bataudit
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-batuser} -d ${DB_NAME:-batdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    networks:
+      - bataudit
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── BatAudit services ────────────────────────────────────────────────────────
+
+  writer:
+    build:
+      context: .
+      dockerfile: cmd/api/writer/Dockerfile
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-batuser}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-batdb}
+      - REDIS_ADDRESS=redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - GIN_MODE=release
+      - INITIAL_OWNER_EMAIL=${INITIAL_OWNER_EMAIL}
+      - INITIAL_OWNER_PASSWORD=${INITIAL_OWNER_PASSWORD}
+      - INITIAL_OWNER_NAME=${INITIAL_OWNER_NAME:-Admin}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@example.com}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - bataudit
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  reader:
+    build:
+      context: .
+      dockerfile: cmd/api/reader/Dockerfile
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-batuser}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-batdb}
+      - JWT_SECRET=${JWT_SECRET}
+      - API_READER_PORT=8082
+      - GIN_MODE=release
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@example.com}
+      - TIERING_RAW_DAYS=${TIERING_RAW_DAYS:-90}
+      - TIERING_HOURLY_DAYS=${TIERING_HOURLY_DAYS:-365}
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - bataudit
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: cmd/api/worker/Dockerfile
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-batuser}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-batdb}
+      - REDIS_ADDRESS=redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - QUEUE_NAME=bataudit:events
+      - WORKER_INITIAL_COUNT=${WORKER_INITIAL_COUNT:-2}
+      - WORKER_MIN_COUNT=${WORKER_MIN_COUNT:-2}
+      - WORKER_MAX_COUNT=${WORKER_MAX_COUNT:-5}
+      - ENABLE_AUTOSCALING=true
+      - ANOMALY_COOLDOWN=${ANOMALY_COOLDOWN:-5m}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      writer:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - bataudit
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  bataudit:
+    driver: bridge
