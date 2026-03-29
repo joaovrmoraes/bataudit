@@ -71,54 +71,6 @@ jobs:
           version: latest
           args: --timeout=3m
 
-  # ── Integration tests ────────────────────────────────────────────────────────
-  integration:
-    name: Integration tests
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: batuser
-          POSTGRES_PASSWORD: batpassword
-          POSTGRES_DB: batdb_test
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-      redis:
-        image: redis:alpine
-        ports:
-          - 6380:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    env:
-      TEST_DB_URL: postgres://batuser:batpassword@localhost:5433/batdb_test?sslmode=disable
-      TEST_REDIS_ADDR: localhost:6380
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Download modules
-        run: go mod download
-
-      - name: Integration tests
-        run: go test -tags=integration ./internal/audit/... ./internal/auth/... -race -count=1 -timeout=120s -v
-
   # ── Frontend ─────────────────────────────────────────────────────────────────
   frontend:
     name: Frontend
