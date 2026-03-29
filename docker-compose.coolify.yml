@@ -143,6 +143,27 @@ services:
     networks:
       - bataudit
 
+  seeder:
+    build:
+      context: .
+      dockerfile: cmd/tools/seed/Dockerfile
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-batuser}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-batdb}
+      - INITIAL_OWNER_EMAIL=${INITIAL_OWNER_EMAIL}
+      - INITIAL_OWNER_PASSWORD=${INITIAL_OWNER_PASSWORD}
+      - INITIAL_OWNER_NAME=${INITIAL_OWNER_NAME:-Admin}
+    depends_on:
+      reader:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - bataudit
+
 volumes:
   postgres_data:
     driver: local
