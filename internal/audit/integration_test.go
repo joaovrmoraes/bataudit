@@ -123,7 +123,7 @@ func TestWorkerFlow(t *testing.T) {
 	project := &auth.Project{
 		ID:        "proj-int-test",
 		Name:      "Integration Test Project",
-		Slug:      "int-test-project",
+		Slug:      "worker-flow-svc", // must match service_name so EnsureProject finds it
 		CreatedBy: owner.ID,
 		CreatedAt: time.Now(),
 	}

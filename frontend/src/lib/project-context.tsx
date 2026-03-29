@@ -20,6 +20,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useProject() {
   return React.useContext(ProjectContext)
 }
