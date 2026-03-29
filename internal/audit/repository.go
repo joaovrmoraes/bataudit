@@ -293,23 +293,26 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		Timeline:      []TimelinePoint{},
 	}
 
-	base := r.db.Model(&Audit{})
-	if projectID != "" {
-		base = base.Where("project_id = ?", projectID)
+	base := func() *gorm.DB {
+		q := r.db.Model(&Audit{})
+		if projectID != "" {
+			q = q.Where("project_id = ?", projectID)
+		}
+		return q
 	}
 
 	// Main metrics
 	type mainRow struct {
-		Total           int64
-		Errors4xx       int64
-		Errors5xx       int64
-		AvgResponseTime float64
-		P95ResponseTime float64
-		ActiveServices  int64
-		LastEventAt     string
+		Total           int64   `gorm:"column:total"`
+		Errors4xx       int64   `gorm:"column:errors_4xx"`
+		Errors5xx       int64   `gorm:"column:errors_5xx"`
+		AvgResponseTime float64 `gorm:"column:avg_response_time"`
+		P95ResponseTime float64 `gorm:"column:p95_response_time"`
+		ActiveServices  int64   `gorm:"column:active_services"`
+		LastEventAt     string  `gorm:"column:last_event_at"`
 	}
 	var m mainRow
-	base.Select(`
+	base().Select(`
 		COUNT(*) AS total,
 		COUNT(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 END) AS errors_4xx,
 		COUNT(CASE WHEN status_code >= 500 THEN 1 END) AS errors_5xx,
@@ -336,13 +339,13 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		LastEvent       string
 	}
 	var serviceRows []serviceRow
-	base.Select(`
+	base().Select(`
 		service_name,
 		COUNT(*) AS requests,
 		COUNT(CASE WHEN status_code >= 400 THEN 1 END) AS errors,
 		COALESCE(AVG(response_time), 0) AS avg_response_time,
 		COALESCE(TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') AS last_event
-	`).Group("service_name").Order("requests DESC").Scan(&serviceRows)
+	`).Group("service_name").Order("COUNT(*) DESC").Scan(&serviceRows)
 	for _, row := range serviceRows {
 		stats.ByService = append(stats.ByService, ServiceBreakdown{
 			ServiceName:     row.ServiceName,
@@ -359,7 +362,7 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		Count int64
 	}
 	var statusRows []statusRow
-	base.Select(`
+	base().Select(`
 		CASE
 			WHEN status_code >= 500 THEN '5xx'
 			WHEN status_code >= 400 THEN '4xx'
@@ -378,7 +381,7 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		Count  int64
 	}
 	var methodRows []methodRow
-	base.Select("method, COUNT(*) AS count").Group("method").Scan(&methodRows)
+	base().Select("method, COUNT(*) AS count").Group("method").Scan(&methodRows)
 	for _, row := range methodRows {
 		stats.ByMethod[row.Method] = row.Count
 	}

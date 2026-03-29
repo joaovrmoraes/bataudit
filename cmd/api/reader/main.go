@@ -16,7 +16,9 @@ package main
 
 import (
 	"log/slog"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -145,6 +147,19 @@ func main() {
 	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.Static("/app", "./frontend/dist")
+
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/app/")
+	})
+
+	r.NoRoute(func(c *gin.Context) {
+		p := c.Request.URL.Path
+		if strings.HasPrefix(p, "/v1") || strings.HasPrefix(p, "/docs") || strings.HasPrefix(p, "/health") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.File("./frontend/dist/index.html")
+	})
 
 	port := config.GetEnv("API_READER_PORT", "8082")
 	slog.Info("Reader server running", "port", port)

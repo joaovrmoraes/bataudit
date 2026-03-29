@@ -10,7 +10,7 @@ export interface HealthResponse {
 }
 
 export async function getHealthDetails(): Promise<HealthResponse> {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/health`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',

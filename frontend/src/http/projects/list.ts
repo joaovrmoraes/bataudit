@@ -9,7 +9,7 @@ export interface Project {
 }
 
 export async function listProjects(): Promise<Project[]> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/auth/projects`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects`, {
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
   })
   if (!res.ok) throw new Error('Failed to list projects')
@@ -18,7 +18,7 @@ export async function listProjects(): Promise<Project[]> {
 }
 
 export async function createProject(name: string, slug: string): Promise<Project> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/auth/projects`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects`, {
     method: 'POST',
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, slug }),

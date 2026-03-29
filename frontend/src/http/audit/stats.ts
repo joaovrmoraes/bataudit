@@ -32,7 +32,7 @@ export async function getAuditStats(projectId?: string | null): Promise<AuditSta
   if (projectId) search.set('project_id', projectId)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/audit/stats${query}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/stats${query}`, {
     headers: { ...authHeader() },
   })
 

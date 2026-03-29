@@ -10,7 +10,7 @@ export interface Member {
 
 export async function listMembers(projectId: string): Promise<Member[]> {
   const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/v1/auth/projects/${projectId}/members`,
+    `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members`,
     { headers: { ...authHeader() } },
   )
   if (!res.ok) throw new Error('Failed to list members')
@@ -24,7 +24,7 @@ export async function addMember(
   role: Member['role'],
 ): Promise<void> {
   const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/v1/auth/projects/${projectId}/members`,
+    `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members`,
     {
       method: 'POST',
       headers: { ...authHeader(), 'Content-Type': 'application/json' },
@@ -43,7 +43,7 @@ export async function updateMemberRole(
   role: Member['role'],
 ): Promise<void> {
   const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/v1/auth/projects/${projectId}/members/${userId}`,
+    `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members/${userId}`,
     {
       method: 'PATCH',
       headers: { ...authHeader(), 'Content-Type': 'application/json' },
@@ -58,7 +58,7 @@ export async function removeMember(
   userId: string,
 ): Promise<void> {
   const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/v1/auth/projects/${projectId}/members/${userId}`,
+    `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members/${userId}`,
     { method: 'DELETE', headers: { ...authHeader() } },
   )
   if (!res.ok) throw new Error('Failed to remove member')

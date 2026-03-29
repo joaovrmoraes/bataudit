@@ -1,10 +1,11 @@
 ## Stage 1: build the React frontend
 FROM node:20-alpine AS frontend-builder
+RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci --prefer-offline
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --shamefully-hoist
 COPY frontend/ .
-RUN npm run build
+RUN pnpm exec vite build
 
 ## Stage 2: build the Go binary
 FROM golang:1.24-alpine AS go-builder

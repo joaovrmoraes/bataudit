@@ -38,7 +38,9 @@ export function useAuditDetail(id: string | null) {
 }
 
 export function useAnomalyAlerts(projectId?: string | null) {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const sinceDate = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  sinceDate.setMinutes(0, 0, 0) // truncate to hour so queryKey is stable across renders
+  const since = sinceDate.toISOString()
   return useQuery({
     queryKey: ['anomaly-alerts', projectId, since],
     queryFn: () => ListAudit({
@@ -64,6 +66,14 @@ export function useSessionByID(sessionID: string | null) {
     queryKey: ['session-by-id', sessionID],
     queryFn: () => getSessionByID(sessionID!),
     enabled: !!sessionID,
+  })
+}
+
+export function useAnomalyRelatedEvents(params: Parameters<typeof ListAudit>[0], enabled = true) {
+  return useQuery({
+    queryKey: ['anomaly-related', params],
+    queryFn: () => ListAudit(params),
+    enabled: enabled && !!params?.service_name,
   })
 }
 

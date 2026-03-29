@@ -64,7 +64,7 @@ export async function ListAudit(
   if (params?.event_type) search.set('event_type', params.event_type)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/audit${query}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit${query}`, {
     method: 'GET',
     headers: { ...authHeader(), 'Content-Type': 'application/json' },
   })

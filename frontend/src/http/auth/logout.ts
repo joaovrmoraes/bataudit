@@ -1,7 +1,7 @@
 import { authHeader } from '@/lib/auth'
 
 export async function logout(): Promise<void> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/auth/logout`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/logout`, {
     method: 'POST',
     headers: { ...authHeader() },
   })

@@ -150,10 +150,10 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 ### 5.2 Opção B — Rastreamento explícito via `session_id` (mudança de modelo)
 > Para quem precisar de maior precisão. Opt-in — quem não passar `session_id` continua funcionando.
 
-- [ ] Adicionar campo `session_id` opcional ao modelo `Audit`
-- [ ] Criar migration para adicionar a coluna `session_id`
-- [ ] Criar endpoint `GET /audit/sessions/:session_id` — detalhes de uma sessão específica
-- [ ] Calcular duração via `max(timestamp) - min(timestamp)` agrupado por `session_id`
+- [x] Adicionar campo `session_id` opcional ao modelo `Audit`
+- [x] Criar migration para adicionar a coluna `session_id` (migration 000008)
+- [x] Criar endpoint `GET /audit/sessions/:session_id` — detalhes de uma sessão específica
+- [x] Calcular duração via `max(timestamp) - min(timestamp)` agrupado por `session_id`
 
 ---
 
@@ -252,7 +252,7 @@ SDK (api_key + service_name) → Writer → projeto criado automaticamente → e
 
 - [x] Método `createLambdaWrapper(config)` — retorna `wrap(handler, getAuditData?)` com flush via `try/finally`
 - [x] Flush forçado antes do processo encerrar
-- [ ] Documentar limitação: hard-kill por OOM ou timeout da plataforma não pode ser capturado pelo backend
+- [x] Documentar limitação: hard-kill por OOM ou timeout da plataforma não pode ser capturado pelo backend (sdks/node/README.md)
 
 ```ts
 // Lambda
@@ -297,7 +297,7 @@ export const handler = wrap(
 - [x] Migration `000004_add_source_to_audits` para coluna `source`
 - [x] Writer define `source = "backend"` automaticamente se não vier no payload
 - [x] Endpoint `GET /v1/audit/orphans` — lista eventos browser sem correspondência backend
-- [ ] Exibir no dashboard com destaque: "X requisições sem resposta do backend nos últimos 24h"
+- [x] Exibir no dashboard com destaque: "X requisições sem resposta do backend nos últimos 24h" (card + banner no index.tsx)
 
 ```
 Browser gera request_id → envia requisição com X-Request-ID
@@ -316,24 +316,24 @@ Browser gera request_id → envia requisição com X-Request-ID
 - [x] Testes para `service.go` — validações, regras de negócio, cálculo de sessão
 - [x] Testes para `sanitizer.go` e `validator.go` — detecção e mascaramento de dados sensíveis
 - [ ] Testes para lógica de correlação de `request_id` (orphans)
-- [ ] Testes para o SDK Node.js — geração de `request_id`, captura de campos, modo Lambda
+- [x] Testes para o SDK Node.js — geração de `request_id`, captura de campos, modo Lambda (sdks/node/tests/)
 
 ### 9.2 Testes de integração
 
 > Sobe banco + Redis reais via Docker Compose de teste. Garante que o fluxo completo funciona sem depender de aplicação real.
 
-- [ ] Criar `docker-compose.test.yml` com PostgreSQL e Redis isolados para testes
-- [ ] Teste do fluxo completo: `Writer → Redis → Worker → banco → Reader`
+- [x] Criar `docker-compose.test.yml` com PostgreSQL e Redis isolados para testes
+- [x] Teste do fluxo completo: `Writer → Redis → Worker → banco → Reader` (internal/audit/integration_test.go, roda em CI)
 - [ ] Teste de falha no Redis — Writer deve retornar erro adequado
-- [ ] Teste de autenticação — JWT inválido, API Key expirada, sem permissão
-- [ ] Teste de rate limiting — verificar que o 429 é retornado corretamente
+- [x] Teste de autenticação — JWT inválido, API Key expirada, sem permissão (internal/auth/integration_test.go)
+- [ ] Teste de rate limiting — verificar que o 429 é retornado corretamente (rate limiting não implementado — ver Fase 3.7)
 
 ### 9.3 Aplicação mock (a mais importante para validar dados reais)
 
 > Uma aplicação Node.js simples com o SDK instalado que simula cenários reais. Gera eventos reais no BatAudit — você vê no dashboard exatamente o que um usuário real veria.
 
-- [ ] Criar repositório/diretório `mock-app/` com Express + SDK BatAudit instalado
-- [ ] Estrutura de cenários:
+- [x] Criar repositório/diretório `mock-app/` com Express + SDK BatAudit instalado
+- [x] Estrutura de cenários:
 
 ```
 mock-app/
@@ -346,9 +346,9 @@ mock-app/
       └── load.js       → volume alto para testar fila, worker e autoscaling
 ```
 
-- [ ] Cada cenário executável isoladamente: `node scenarios/errors.js`
-- [ ] Cenário `lambda.js` usa o modo `bataudit.wrap()` e simula crash via `process.exit(1)` no meio do handler
-- [ ] Cenário `load.js` configurável: número de requisições, concorrência, intervalo
+- [x] Cada cenário executável isoladamente: `node scenarios/errors.js`
+- [x] Cenário `lambda.js` usa o modo `bataudit.wrap()` e simula crash via `process.exit(1)` no meio do handler
+- [x] Cenário `load.js` configurável: número de requisições, concorrência, intervalo
 
 ### 9.4 Seed de dados para desenvolvimento do frontend
 
@@ -359,7 +359,7 @@ mock-app/
 - [x] Cobrir variações de: `method`, `status_code`, `environment`, `response_time`, `user_roles`
 - [x] Distribuição temporal realista — eventos espalhados nos últimos 30 dias
 - [x] Incluir cenários de pico (muitos erros em um período) para testar alertas visuais
-- [ ] Incluir eventos órfãos (browser sem backend) para testar a detecção de orphans
+- [x] Incluir eventos órfãos (browser sem backend) para testar a detecção de orphans (cmd/tools/seed/main.go)
 
 ---
 
@@ -447,7 +447,7 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 - [x] Adicionar prefixo `/v1` em todas as rotas do Writer (`/v1/audit`)
 - [x] Adicionar prefixo `/v1` em todas as rotas do Reader (`/v1/audit`, `/v1/auth`, etc.)
 - [x] Atualizar o frontend para usar as rotas versionadas
-- [ ] Documentar no README que a API é versionada
+- [x] Documentar no README que a API é versionada (README.md, seção API Reference)
 
 ### Frontend — URL hardcoded e erros silenciosos
 
@@ -613,7 +613,7 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 - [x] Criar workflow `.github/workflows/ci.yml`
 - [x] Rodar `go vet ./...` e `golangci-lint` no backend
 - [x] Rodar testes unitários (`go test ./...`)
-- [ ] Rodar testes de integração via `docker-compose.test.yml`
+- [x] Rodar testes de integração via `docker-compose.test.yml` (job `integration` no ci.yml)
 - [x] Rodar lint e typecheck no frontend (`eslint`, `tsc --noEmit`)
 - [x] Bloquear merge se qualquer etapa falhar
 
@@ -655,7 +655,7 @@ Bugs identificados na revisão de código pós-implementação.
 
 - [x] Adicionar endpoint `GET /audit/stats` — resumo agregado (total por serviço, por método, erros, etc.)
 - [x] Suporte a ordenação na listagem (`sort_by`, `sort_order`)
-- [ ] Internacionalizar mensagens de erro (hoje misturadas em PT e EN)
+- [x] Internacionalizar mensagens de erro — todas as mensagens do backend já estão em EN consistentemente
 
 ---
 
@@ -706,6 +706,37 @@ Bugs identificados na revisão de código pós-implementação.
   ```
 - [x] `.env.demo` com todas as variáveis pré-configuradas (sem nada para o usuário editar)
 - [x] Seção "Quick Demo" no README com o comando acima em destaque
+
+---
+
+## Fase 20 — Seed de Anomalias para Testes
+
+**Objetivo:** Facilitar testes da detecção de anomalias sem precisar esperar eventos reais ou configurar manualmente.
+
+**Contexto:** O worker analisa eventos e dispara alertas (`system.alert`) com base nas regras de anomalia do projeto. Para testar o fluxo completo (worker → alerta → dashboard), precisamos de dois modos de seed.
+
+- [x] **Modo 1 — seed completo (one-shot):** `cmd/tools/seed-anomalies/main.go`
+  - Insere rajadas de eventos que violam cada regra + cria os `system.alert` diretamente no DB
+  - Cobre todos os 5 tipos: `brute_force`, `error_rate`, `mass_delete`, `volume_spike`, `silent_service`
+  - Garante que as regras do projeto demo existam antes de inserir
+
+- [x] **Modo 2 — seed contínuo (streaming):** `cmd/tools/seed-stream/main.go`
+  - Flags: `--project` (API key, obrigatório), `--rate` (eventos/s, default 2), `--duration` (segundos, 0 = infinito), `--writer` (URL, default http://localhost:8081)
+  - Alterna tráfego normal e rajadas anômalas a cada 30s (cicla pelos 4 tipos de burst)
+  - O worker detecta em tempo real e gera os alertas
+
+**Como rodar:**
+```powershell
+# Modo 1 — seed histórico com anomalias (requer DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
+$env:DB_HOST="localhost"; $env:DB_USER="bat"; $env:DB_PASSWORD="bat"; $env:DB_NAME="bataudit"
+go run .\cmd\tools\seed-anomalies\main.go
+
+# Modo 2 — streaming contínuo via Writer (stack deve estar rodando)
+go run .\cmd\tools\seed-stream\main.go --rate 5 --project bat_<sua_api_key>
+
+# Modo 2 com duração limitada
+go run .\cmd\tools\seed-stream\main.go --rate 3 --duration 120 --project bat_<sua_api_key>
+```
 
 ---
 

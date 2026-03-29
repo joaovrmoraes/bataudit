@@ -43,7 +43,7 @@ export interface SessionFilters {
 }
 
 export async function getSessionByID(sessionID: string): Promise<SessionDetail> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/audit/sessions/${encodeURIComponent(sessionID)}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions/${encodeURIComponent(sessionID)}`, {
     headers: { ...authHeader() },
   })
   if (!res.ok) throw new Error('Session not found')
@@ -59,7 +59,7 @@ export async function getSessions(filters?: SessionFilters): Promise<Session[]> 
   if (filters?.end_date) search.set('end_date', filters.end_date)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/audit/sessions${query}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions${query}`, {
     headers: { ...authHeader() },
   })
   if (!res.ok) throw new Error('Failed to fetch sessions')

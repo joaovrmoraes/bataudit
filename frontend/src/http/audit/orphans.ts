@@ -34,7 +34,7 @@ export async function getOrphans(filters?: OrphanFilters): Promise<OrphansRespon
   if (filters?.end_date) search.set('end_date', filters.end_date)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/v1/audit/orphans${query}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/orphans${query}`, {
     headers: { ...authHeader() },
   })
   if (!res.ok) throw new Error('Failed to fetch orphan events')

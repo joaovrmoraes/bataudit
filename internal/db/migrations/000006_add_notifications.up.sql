@@ -1,6 +1,6 @@
 CREATE TABLE notification_channels (
     id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_id VARCHAR(64) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     type       VARCHAR(16) NOT NULL CHECK (type IN ('push', 'webhook')),
     config     JSONB       NOT NULL DEFAULT '{}',
     active     BOOLEAN     NOT NULL DEFAULT TRUE,

@@ -4,7 +4,7 @@ ALTER TABLE audits ADD COLUMN event_type VARCHAR(32) NOT NULL DEFAULT 'http';
 -- Anomaly detection rules per project
 CREATE TABLE anomaly_rules (
     id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id     UUID         NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_id     VARCHAR(64)  NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     rule_type      VARCHAR(32)  NOT NULL,
     threshold      FLOAT        NOT NULL,
     window_seconds INT          NOT NULL DEFAULT 300,
