@@ -15,7 +15,8 @@ jobs:
       - name: Trigger Coolify — landing
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
-            -X GET "${{ secrets.COOLIFY_WEBHOOK_LANDING }}"
+            -X GET "${{ secrets.COOLIFY_WEBHOOK_LANDING }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
   deploy-demo:
     name: Deploy Demo App
@@ -25,4 +26,5 @@ jobs:
       - name: Trigger Coolify — demo
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
-            -X GET "${{ secrets.COOLIFY_WEBHOOK_DEMO }}"
+            -X GET "${{ secrets.COOLIFY_WEBHOOK_DEMO }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
