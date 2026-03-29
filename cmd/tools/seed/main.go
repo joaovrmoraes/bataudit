@@ -147,11 +147,13 @@ var userAgents = []string{
 	"okhttp/4.9.3", "axios/1.4.0", "python-requests/2.28.0", "Go-http-client/1.1",
 }
 
+const batchSize = 50
+
 func seedEvents(conn *gorm.DB, projectID string) int {
-	repo := audit.NewRepository(conn)
 	now := time.Now()
 	total := 0
 
+	// Historical events — batched per day with a small pause between days.
 	for dayIdx := range 30 {
 		dayStart := now.AddDate(0, 0, -dayIdx).Truncate(24 * time.Hour)
 		isWeekend := dayStart.Weekday() == time.Saturday || dayStart.Weekday() == time.Sunday
@@ -161,16 +163,19 @@ func seedEvents(conn *gorm.DB, projectID string) int {
 		}
 		isSpike := dayIdx == 7 || dayIdx == 20
 
+		batch := make([]audit.Audit, 0, count)
 		for range count {
-			e := generateEvent(dayStart, isSpike, projectID)
-			if err := repo.Create(&e); err == nil {
-				total++
-			}
+			batch = append(batch, generateEvent(dayStart, isSpike, projectID))
 		}
+		if res := conn.CreateInBatches(batch, batchSize); res.Error == nil {
+			total += len(batch)
+		}
+		time.Sleep(80 * time.Millisecond) // throttle: ~12 days/s instead of flat-out
 	}
 
 	// Dense session burst (last 2 hours) for alice.
 	burstStart := now.Add(-2 * time.Hour)
+	burst := make([]audit.Audit, 40)
 	for i := range 40 {
 		e := generateEvent(burstStart, false, projectID)
 		e.Identifier = "usr_001"
@@ -179,13 +184,14 @@ func seedEvents(conn *gorm.DB, projectID string) int {
 		e.ServiceName = "api-gateway"
 		e.Environment = "production"
 		e.Timestamp = burstStart.Add(time.Duration(i) * 3 * time.Minute)
-		if err := repo.Create(&e); err == nil {
-			total++
-		}
+		burst[i] = e
+	}
+	if res := conn.CreateInBatches(burst, batchSize); res.Error == nil {
+		total += len(burst)
 	}
 
 	// Orphan events — browser-side events with no matching backend audit.
-	// Simulates crashes/timeouts where the backend never responded.
+	var orphans []audit.Audit
 	for i := range 12 {
 		requestID := fmt.Sprintf("bat-%s", uuid.New().String()[:8])
 		svc := services[rand.Intn(len(services))]
@@ -196,7 +202,7 @@ func seedEvents(conn *gorm.DB, projectID string) int {
 			EventType:   "http",
 			Method:      audit.HTTPMethod(randChoice([]string{"GET", "POST", "PUT"})),
 			Path:        svc.paths[rand.Intn(len(svc.paths))],
-			StatusCode:  0, // browser captured request but never got a response
+			StatusCode:  0,
 			Identifier:  user.id,
 			UserEmail:   user.email,
 			UserName:    user.name,
@@ -213,20 +219,18 @@ func seedEvents(conn *gorm.DB, projectID string) int {
 			}),
 		}
 		if i%3 == 0 {
-			// Every 3rd orphan: also insert a backend event — this one is NOT orphan
 			backend := orphan
 			backend.ID = uuid.New().String()
 			backend.Source = "backend"
 			backend.StatusCode = 200
 			backend.ResponseTime = int64(randBetween(50, 300))
 			backend.ErrorMessage = ""
-			if err := repo.Create(&backend); err == nil {
-				total++
-			}
+			orphans = append(orphans, backend)
 		}
-		if err := repo.Create(&orphan); err == nil {
-			total++
-		}
+		orphans = append(orphans, orphan)
+	}
+	if res := conn.CreateInBatches(orphans, batchSize); res.Error == nil {
+		total += len(orphans)
 	}
 
 	return total
