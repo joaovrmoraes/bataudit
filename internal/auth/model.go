@@ -23,7 +23,7 @@ type Project struct {
 	ID        string    `json:"id"         gorm:"primaryKey"`
 	Name      string    `json:"name"`
 	Slug      string    `json:"slug"       gorm:"uniqueIndex"`
-	CreatedBy string    `json:"created_by"`
+	CreatedBy string    `json:"created_by" gorm:"default:null"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

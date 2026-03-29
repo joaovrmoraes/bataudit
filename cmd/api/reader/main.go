@@ -163,7 +163,9 @@ func main() {
 
 	port := config.GetEnv("API_READER_PORT", "8082")
 	slog.Info("Reader server running", "port", port)
-	r.Run(":" + port)
+	if err := r.Run(":" + port); err != nil {
+		slog.Error("Reader server failed", "error", err)
+	}
 }
 
 func setupLogger() {

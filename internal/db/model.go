@@ -24,7 +24,7 @@ type Database struct {
 }
 
 func LoadConfig() Database {
-	godotenv.Load()
+	_ = godotenv.Load()
 	return Database{
 		Driver:     DatabaseDriver(os.Getenv("DB_DRIVER")),
 		User:       os.Getenv("DB_USER"),

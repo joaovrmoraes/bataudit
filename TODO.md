@@ -767,3 +767,9 @@ Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 →
 - Fase 18 (demo online) depende da Fase 12 (CI/CD) para ter pipeline de deploy automatizado
 - Fase 12.1 (CI) pode ser iniciada a qualquer momento, mas o valor máximo vem depois da Fase 9 (testes) estar pronta
 - Fase 12.2 e 12.3 (build + deploy) fazem mais sentido após a Fase 3 (autenticação) e antes de lançar os SDKs públicos (Fase 7/8)
+
+---
+
+## Backlog — Melhorias Pontuais
+
+- [ ] **Filtro por `environment` no dashboard** — adicionar selector de environment (prod, staging, dev, local, testing) na página de eventos/audit list, integrado com o filtro `?environment=` já existente na API (`GET /v1/audit`)

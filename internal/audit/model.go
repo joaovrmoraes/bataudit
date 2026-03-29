@@ -74,7 +74,7 @@ type Audit struct {
 	ServiceName string    `json:"service_name" validate:"required,valid_service_name,max=100"` // Name of the service/API
 	Environment string    `json:"environment" validate:"required,valid_environment"`            // Environment (prod, staging, dev)
 	Timestamp   time.Time `json:"timestamp" validate:"required"`                                // Timestamp of the request
-	ProjectID   string    `json:"project_id,omitempty"`                                         // Resolved project (set by Writer automatically)
+	ProjectID   string    `json:"project_id,omitempty"  gorm:"default:null"`                    // Resolved project (set by Writer automatically)
 	SessionID   string    `json:"session_id,omitempty" validate:"omitempty,max=100"`            // Optional explicit session ID (opt-in)
 }
 

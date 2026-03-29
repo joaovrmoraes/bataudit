@@ -24,7 +24,7 @@ function LoginPage() {
     try {
       const { token, user } = await login(email, password)
       setAuth(token, user)
-      router.navigate({ to: '/app/' })
+      router.navigate({ to: '/app' })
     } catch {
       setError('Invalid email or password.')
     } finally {

@@ -2,7 +2,7 @@ import React from 'react'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { RefreshCw, AlertCircle, Filter, X, ChevronUp, ChevronDown, ShieldAlert, Download, Unlink } from 'lucide-react'
@@ -115,11 +115,11 @@ function RouteComponent() {
   }
 
   function setFilter(key: string, value: string) {
-    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, [key]: value || undefined, page: 1 }) })
+    navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, [key]: value || undefined, page: 1 }) })
   }
 
   function clearFilters() {
-    navigate({ search: { page: 1 } })
+    navigate({ from: Route.fullPath, search: { page: 1 } })
   }
 
   const [exporting, setExporting] = React.useState(false)
@@ -164,7 +164,7 @@ function RouteComponent() {
     const currentCol = search.sort_by ?? 'timestamp'
     const currentDir = search.sort_order ?? 'desc'
     const newDir = currentCol === col && currentDir === 'desc' ? 'asc' : 'desc'
-    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, sort_by: col, sort_order: newDir, page: 1 }) })
+    navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, sort_by: col, sort_order: newDir, page: 1 }) })
   }
 
   const hasFilters = Object.values(activeFilters).some(Boolean)
@@ -631,7 +631,7 @@ function RouteComponent() {
             </div>
           )}
 
-          <AppPagination page={page} totalPages={totalPages} setPage={p => navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, page: p }) })} />
+          <AppPagination page={page} totalPages={totalPages} setPage={p => navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, page: p }) })} />
         </div>
 
       <EventDetailModal eventId={selectedEventId} onClose={() => setSelectedEventId(null)} />

@@ -123,7 +123,7 @@ func (s *Sender) sendWebhook(ctx context.Context, ch Channel, payload AlertPaylo
 		}
 
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
+		_, _ = buf.ReadFrom(resp.Body)
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {

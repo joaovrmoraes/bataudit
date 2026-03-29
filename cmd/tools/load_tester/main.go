@@ -66,7 +66,7 @@ func sendToAPI(event audit.Audit, client *http.Client) error {
 		return fmt.Errorf("error marshaling event: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", *apiURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(context.Background(), "POST", *apiURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
@@ -95,8 +95,6 @@ func sendToRedis(ctx context.Context, event audit.Audit, redisQueue *queue.Redis
 
 func main() {
 	flag.Parse()
-	rand.Seed(time.Now().UnixNano())
-
 	fmt.Printf("Starting load test with %d requests, %d concurrent, interval %v\n",
 		*requestCount, *concurrency, *interval)
 	fmt.Printf("Mode: %s\n", *mode)
@@ -131,7 +129,7 @@ func main() {
 
 		// Test API connection
 		client := &http.Client{Timeout: 5 * time.Second}
-		req, err := http.NewRequest("GET", *apiURL, nil)
+		req, err := http.NewRequestWithContext(context.Background(), "GET", *apiURL, nil)
 		if err != nil {
 			fmt.Printf("Warning: Could not create test request: %v\n", err)
 		} else {

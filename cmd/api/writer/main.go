@@ -104,7 +104,9 @@ func main() {
 
 	port := config.GetEnv("API_WRITER_PORT", "8081")
 	slog.Info("Writer server running", "port", port)
-	r.Run(":" + port)
+	if err := r.Run(":" + port); err != nil {
+		slog.Error("Writer server failed", "error", err)
+	}
 }
 
 func setupLogger() {

@@ -132,11 +132,11 @@ function SessionsPage() {
   const hasFilters = !!(search.identifier || search.service_name || search.start_date || search.end_date)
 
   function setFilter(key: string, value: string) {
-    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, [key]: value || undefined }) })
+    navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, [key]: value || undefined }) })
   }
 
   function clearFilters() {
-    navigate({ search: {} })
+    navigate({ from: Route.fullPath, search: {} })
   }
 
   function toggleSession(session: Session) {

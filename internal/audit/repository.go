@@ -351,13 +351,7 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		COALESCE(TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') AS last_event
 	`).Group("service_name").Order("COUNT(*) DESC").Scan(&serviceRows)
 	for _, row := range serviceRows {
-		stats.ByService = append(stats.ByService, ServiceBreakdown{
-			ServiceName:     row.ServiceName,
-			Requests:        row.Requests,
-			Errors:          row.Errors,
-			AvgResponseTime: row.AvgResponseTime,
-			LastEvent:       row.LastEvent,
-		})
+		stats.ByService = append(stats.ByService, ServiceBreakdown(row))
 	}
 
 	// By status class
@@ -404,7 +398,7 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 	}
 	tq.Group("hour").Order("hour ASC").Scan(&timelineRows)
 	for _, row := range timelineRows {
-		stats.Timeline = append(stats.Timeline, TimelinePoint{Hour: row.Hour, Count: row.Count})
+		stats.Timeline = append(stats.Timeline, TimelinePoint(row))
 	}
 
 	return stats, nil

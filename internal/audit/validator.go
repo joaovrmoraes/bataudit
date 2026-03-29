@@ -12,13 +12,13 @@ import (
 
 // RegisterCustomValidations - register custom validations for the Audit model
 func RegisterCustomValidations(v *validator.Validate) {
-	v.RegisterValidation("valid_http_method", validateHTTPMethod)
-	v.RegisterValidation("valid_ip", validateIP)
-	v.RegisterValidation("valid_environment", validateEnvironment)
-	v.RegisterValidation("valid_email", validateEmail)
-	v.RegisterValidation("valid_uuid", validateUUID)
-	v.RegisterValidation("valid_url", validateURL)
-	v.RegisterValidation("valid_service_name", validateServiceName)
+	_ = v.RegisterValidation("valid_http_method", validateHTTPMethod)
+	_ = v.RegisterValidation("valid_ip", validateIP)
+	_ = v.RegisterValidation("valid_environment", validateEnvironment)
+	_ = v.RegisterValidation("valid_email", validateEmail)
+	_ = v.RegisterValidation("valid_uuid", validateUUID)
+	_ = v.RegisterValidation("valid_url", validateURL)
+	_ = v.RegisterValidation("valid_service_name", validateServiceName)
 }
 
 // validateHTTPMethod - verifies if the HTTP method is valid

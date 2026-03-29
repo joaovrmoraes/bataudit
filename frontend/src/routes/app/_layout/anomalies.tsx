@@ -22,7 +22,7 @@ type AlertSummary = {
   id: string
   path: string
   service_name: string
-  environment: string
+  environment?: string
   timestamp: string
 }
 
@@ -291,7 +291,7 @@ function AlertDrawer({ alert, projectId, onClose }: {
               </div>
 
               {/* Footer: identifier hint for brute force */}
-              {details?.identifier && alert.path === 'brute_force' && (
+              {!!details?.identifier && alert.path === 'brute_force' && (
                 <div className="px-6 pb-5">
                   <div className="flex items-center gap-2 p-3 rounded-md bg-[#fb923c]/10 border border-[#fb923c]/20">
                     <User className="h-3.5 w-3.5 text-[#fb923c] shrink-0" />

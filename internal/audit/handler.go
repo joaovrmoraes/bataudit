@@ -197,10 +197,10 @@ func (h *Handler) List(c *gin.Context) {
 	page := 1
 
 	if l := c.Query("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		_, _ = fmt.Sscanf(l, "%d", &limit)
 	}
 	if p := c.Query("page"); p != "" {
-		fmt.Sscanf(p, "%d", &page)
+		_, _ = fmt.Sscanf(p, "%d", &page)
 	}
 	if limit <= 0 {
 		limit = 10
@@ -223,7 +223,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 
 	if sc := c.Query("status_code"); sc != "" {
-		fmt.Sscanf(sc, "%d", &filters.StatusCode)
+		_, _ = fmt.Sscanf(sc, "%d", &filters.StatusCode)
 	}
 
 	if sd := c.Query("start_date"); sd != "" {
@@ -405,7 +405,7 @@ func (h *Handler) Export(c *gin.Context) {
 		EventType:   c.Query("event_type"),
 	}
 	if sc := c.Query("status_code"); sc != "" {
-		fmt.Sscanf(sc, "%d", &filters.StatusCode)
+		_, _ = fmt.Sscanf(sc, "%d", &filters.StatusCode)
 	}
 	if sd := c.Query("start_date"); sd != "" {
 		if t, err := time.Parse(time.RFC3339, sd); err == nil {
@@ -438,14 +438,14 @@ func (h *Handler) Export(c *gin.Context) {
 		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="bataudit-export-%s.json"`, dateTag))
 		c.Header("Content-Type", "application/json")
 		enc := json.NewEncoder(c.Writer)
-		enc.Encode(rows)
+		_ = enc.Encode(rows)
 	default:
 		c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="bataudit-export-%s.csv"`, dateTag))
 		c.Header("Content-Type", "text/csv")
 		w := csv.NewWriter(c.Writer)
-		w.Write([]string{"id", "event_type", "timestamp", "service_name", "method", "path", "status_code", "response_time_ms", "identifier", "user_email", "user_name"})
+		_ = w.Write([]string{"id", "event_type", "timestamp", "service_name", "method", "path", "status_code", "response_time_ms", "identifier", "user_email", "user_name"})
 		for _, r := range rows {
-			w.Write([]string{
+			_ = w.Write([]string{
 				r.ID,
 				r.EventType,
 				r.Timestamp.UTC().Format(time.RFC3339),

@@ -13,6 +13,7 @@ export interface AuditSummary {
   service_name: string
   timestamp: string
   response_time: number
+  environment?: string
   project_id?: string
 }
 
