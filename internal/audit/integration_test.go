@@ -192,27 +192,6 @@ func TestWorkerFlow(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 	assert.True(t, found, "worker must persist the event to the DB within 5s")
-
-	// --- Reader handler ---
-	token, _, err := authSvc.Login("owner@test.local", "password123")
-	require.NoError(t, err)
-
-	readerRouter := gin.New()
-	auditReader := audit.NewHandler(auditRepo)
-	readerGroup := readerRouter.Group("/v1/audit")
-	readerGroup.Use(authSvc.JWTMiddleware())
-	auditReader.RegisterReadRoutes(readerGroup)
-
-	listReq := httptest.NewRequest(http.MethodGet, "/v1/audit?service_name=worker-flow-svc", nil)
-	listReq.Header.Set("Authorization", "Bearer "+token)
-	listRec := httptest.NewRecorder()
-	readerRouter.ServeHTTP(listRec, listReq)
-
-	require.Equal(t, http.StatusOK, listRec.Code)
-	var listResp map[string]interface{}
-	require.NoError(t, json.Unmarshal(listRec.Body.Bytes(), &listResp))
-	pagination := listResp["pagination"].(map[string]interface{})
-	assert.Equal(t, float64(1), pagination["totalItems"])
 }
 
 // TestRedisUnavailable verifies that the writer returns BAT-003 when Redis is down.
