@@ -508,6 +508,34 @@ function RouteComponent() {
             </div>
           </div>
 
+          {/* Environment quick-filter */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {([
+              { value: '', label: 'All envs' },
+              { value: 'production', label: 'production', color: 'text-[#34d399] border-[#34d399]/50 bg-[#34d399]/10' },
+              { value: 'staging', label: 'staging', color: 'text-[#60a5fa] border-[#60a5fa]/50 bg-[#60a5fa]/10' },
+              { value: 'development', label: 'development', color: 'text-[#818cf8] border-[#818cf8]/50 bg-[#818cf8]/10' },
+              { value: 'testing', label: 'testing', color: 'text-[#fb923c] border-[#fb923c]/50 bg-[#fb923c]/10' },
+              { value: 'local', label: 'local', color: 'text-muted-foreground border-border/60 bg-muted/30' },
+            ] as const).map(env => {
+              const active = (search.environment ?? '') === env.value
+              return (
+                <button
+                  key={env.value}
+                  onClick={() => setFilter('environment', env.value)}
+                  className={[
+                    'px-2.5 py-0.5 rounded-full border text-xs font-medium transition-colors',
+                    active
+                      ? (env.value === '' ? 'bg-foreground text-background border-foreground' : env.color)
+                      : 'text-muted-foreground border-border/40 hover:border-border hover:text-foreground',
+                  ].join(' ')}
+                >
+                  {env.label}
+                </button>
+              )
+            })}
+          </div>
+
           {/* 6.5 Filter panel */}
           {filterOpen && (
             <Card className="p-4 border-border/50 bg-card/60 space-y-3">
@@ -522,14 +550,6 @@ function RouteComponent() {
                   {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
                 <Input placeholder="Status code" value={search.status_code ?? ''} onChange={e => setFilter('status_code', e.target.value)} className="text-xs h-8" />
-                <select
-                  className="rounded-md border border-input bg-background px-3 py-1 text-xs h-8"
-                  value={search.environment ?? ''}
-                  onChange={e => setFilter('environment', e.target.value)}
-                >
-                  <option value="">All environments</option>
-                  {['production', 'staging', 'development', 'testing', 'local'].map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
                 <Input placeholder="Identifier" value={search.identifier ?? ''} onChange={e => setFilter('identifier', e.target.value)} className="text-xs h-8" />
               </div>
               <div className="grid grid-cols-2 gap-2">
