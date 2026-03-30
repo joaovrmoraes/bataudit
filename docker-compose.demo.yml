@@ -120,21 +120,6 @@ services:
     networks:
       - bataudit-demo
 
-  # ── Anomaly seeder (runs once after seeder, seeds historical alerts) ─────────
-
-  seed-anomalies:
-    build:
-      context: .
-      dockerfile: cmd/tools/seed-anomalies/Dockerfile
-    container_name: bat_demo_seed_anomalies
-    env_file: .env.demo
-    depends_on:
-      seeder:
-        condition: service_completed_successfully
-    restart: "no"
-    networks:
-      - bataudit-demo
-
   # ── Streamer (long-running, continuously feeds live events + anomaly bursts) ─
 
   streamer:
@@ -145,10 +130,9 @@ services:
     env_file: .env.demo
     environment:
       - API_KEY=${DEMO_API_KEY:-bat_demo00000000000000000000000000000000000000000000000000000000000000}
-      - WRITER_URL=http://writer:8081
     command: ["./seed-stream", "--writer", "http://writer:8081", "--rate", "1", "--burst-interval", "300"]
     depends_on:
-      seed-anomalies:
+      seeder:
         condition: service_completed_successfully
     restart: on-failure:5
     networks:

@@ -5,6 +5,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math/rand"
@@ -17,6 +18,7 @@ import (
 	"github.com/joaovrmoraes/bataudit/internal/auth"
 	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -93,6 +95,123 @@ func main() {
 	// Seed audit events.
 	total := seedEvents(conn, project.ID)
 	slog.Info("seed complete", "events_inserted", total, "project_id", project.ID)
+
+	// Seed anomaly scenarios (idempotent).
+	seedAnomalies(conn, project.ID)
+}
+
+func seedAnomalies(conn *gorm.DB, projectID string) {
+	// Skip if alerts already exist.
+	var count int64
+	conn.Model(&audit.Audit{}).Where("project_id = ? AND event_type = 'system.alert'", projectID).Count(&count)
+	if count > 0 {
+		slog.Info("anomaly data already seeded", "alerts", count)
+		return
+	}
+
+	repo := audit.NewRepository(conn)
+	now := time.Now()
+	total := 0
+	alerts := 0
+
+	// Brute force: 15 × 401 from same identifier in 5 min
+	bruteStart := now.Add(-25 * time.Minute)
+	for i := range 15 {
+		e := audit.Audit{
+			ID: uuid.New().String(), EventType: "http", Method: "POST",
+			Path: "/v1/auth/login", StatusCode: 401, ResponseTime: 85,
+			Identifier: "attacker_001", UserEmail: "attacker@unknown.net",
+			ServiceName: "api-gateway", Environment: "production",
+			Timestamp: bruteStart.Add(time.Duration(i*15) * time.Second),
+			ProjectID: projectID, RequestID: fmt.Sprintf("bat-%s", uuid.New().String()[:8]),
+			IP: "203.0.113.99",
+		}
+		if err := repo.Create(&e); err == nil {
+			total++
+		}
+	}
+	alerts += insertAlert(repo, projectID, "api-gateway", "production", anomaly.RuleBruteForce,
+		map[string]any{"identifier": "attacker_001", "count": 15, "window_secs": 300, "threshold": 10},
+		bruteStart.Add(4*time.Minute))
+
+	// Error rate: 50 requests, 15 errors (30% > 20% threshold)
+	errStart := now.Add(-18 * time.Minute)
+	for i := range 50 {
+		status := 200
+		if i < 15 {
+			status = map[int]int{0: 500, 1: 502, 2: 503, 3: 400, 4: 422}[i%5]
+		}
+		e := audit.Audit{
+			ID: uuid.New().String(), EventType: "http", Method: "GET",
+			Path: "/v1/payments", StatusCode: status, ResponseTime: int64(50 + i*10),
+			Identifier: fmt.Sprintf("usr_%03d", (i%5)+1), ServiceName: "payments-service",
+			Environment: "production", Timestamp: errStart.Add(time.Duration(i*6) * time.Second),
+			ProjectID: projectID, RequestID: fmt.Sprintf("bat-%s", uuid.New().String()[:8]),
+		}
+		if err := repo.Create(&e); err == nil {
+			total++
+		}
+	}
+	alerts += insertAlert(repo, projectID, "payments-service", "production", anomaly.RuleErrorRate,
+		map[string]any{"error_rate": 30.0, "threshold": 20.0, "errors": 15, "total": 50, "window_secs": 300},
+		errStart.Add(5*time.Minute))
+
+	// Mass delete: 60 DELETE requests in 5 min
+	deleteStart := now.Add(-10 * time.Minute)
+	for i := range 60 {
+		e := audit.Audit{
+			ID: uuid.New().String(), EventType: "http", Method: "DELETE",
+			Path: "/v1/items/" + uuid.New().String()[:8], StatusCode: 204, ResponseTime: 45,
+			Identifier: "svc_001", UserEmail: "service-account@internal",
+			ServiceName: "inventory-service", Environment: "production",
+			Timestamp: deleteStart.Add(time.Duration(i*4) * time.Second),
+			ProjectID: projectID, RequestID: fmt.Sprintf("bat-%s", uuid.New().String()[:8]),
+		}
+		if err := repo.Create(&e); err == nil {
+			total++
+		}
+	}
+	alerts += insertAlert(repo, projectID, "inventory-service", "production", anomaly.RuleMassDelete,
+		map[string]any{"count": 60, "threshold": 50, "window_secs": 300},
+		deleteStart.Add(4*time.Minute))
+
+	// Volume spike (alert only)
+	alerts += insertAlert(repo, projectID, "api-gateway", "production", anomaly.RuleVolumeSpike,
+		map[string]any{"current_rate": 60, "baseline_mean": 5.1, "z_score": 45.75, "threshold": 3.0},
+		now.Add(-5*time.Minute))
+
+	// Silent service
+	oldEvent := audit.Audit{
+		ID: uuid.New().String(), EventType: "http", Method: "GET", Path: "/v1/health",
+		StatusCode: 200, ResponseTime: 12, Identifier: "svc_monitor",
+		ServiceName: "legacy-service", Environment: "production",
+		Timestamp: now.Add(-45 * time.Minute), ProjectID: projectID,
+		RequestID: fmt.Sprintf("bat-%s", uuid.New().String()[:8]),
+	}
+	if err := repo.Create(&oldEvent); err == nil {
+		total++
+	}
+	alerts += insertAlert(repo, projectID, "legacy-service", "production", anomaly.RuleSilentService,
+		map[string]any{"silence_minutes": 45, "threshold_minutes": 15, "last_event_at": now.Add(-45 * time.Minute).Format(time.RFC3339)},
+		now.Add(-2*time.Minute))
+
+	slog.Info("anomaly seed complete", "events", total, "alerts", alerts)
+}
+
+func insertAlert(repo audit.Repository, projectID, serviceName, environment string, ruleType anomaly.RuleType, details map[string]any, ts time.Time) int {
+	payload, _ := json.Marshal(details)
+	event := audit.Audit{
+		ID: uuid.New().String(), EventType: "system.alert",
+		Path: string(ruleType), Identifier: "system",
+		ServiceName: serviceName, Environment: environment,
+		ProjectID: projectID, Timestamp: ts,
+		RequestBody: datatypes.JSON(payload),
+	}
+	if err := repo.Create(&event); err != nil {
+		slog.Warn("failed to insert alert", "rule", ruleType, "error", err)
+		return 0
+	}
+	return 1
 }
 
 // ensureDemoAPIKey creates a fixed API key from DEMO_API_KEY env var (idempotent).
