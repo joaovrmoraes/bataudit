@@ -35,6 +35,10 @@ jobs:
             dockerfile: cmd/api/worker/Dockerfile
           - service: seeder
             dockerfile: cmd/tools/seed/Dockerfile
+          - service: seed-anomalies
+            dockerfile: cmd/tools/seed-anomalies/Dockerfile
+          - service: seed-stream
+            dockerfile: cmd/tools/seed-stream/Dockerfile
 
     steps:
       - uses: actions/checkout@v4
