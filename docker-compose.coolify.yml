@@ -71,6 +71,8 @@ services:
 
   reader:
     image: ghcr.io/joaovrmoraes/bataudit/reader:latest
+    labels:
+      - traefik.http.services.reader.loadbalancer.server.port=8082
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
