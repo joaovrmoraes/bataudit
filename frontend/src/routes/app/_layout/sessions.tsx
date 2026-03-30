@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useAuditSessions, useSessionTimeline, useSessionByID } from '@/queries/audit'
 import { useProject } from '@/lib/project-context'
+import { useEnvironment } from '@/lib/environment-context'
 import { EventDetailModal } from '../components/event-detail-modal'
 import type { Session } from '@/http/audit/sessions'
 
@@ -112,6 +113,7 @@ function SessionsPage() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false })
   const { selectedProjectId } = useProject()
+  const { selectedEnvironment } = useEnvironment()
   const [filterOpen, setFilterOpen] = React.useState(false)
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null)
   const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null)
@@ -125,6 +127,7 @@ function SessionsPage() {
     service_name: search.service_name,
     start_date: search.start_date,
     end_date: search.end_date,
+    environment: selectedEnvironment,
   }
 
   const { data: sessions = [], isLoading, isError } = useAuditSessions(filters)

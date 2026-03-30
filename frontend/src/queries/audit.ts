@@ -14,10 +14,10 @@ export function useAuditList(page: number, limit: number, projectId?: string | n
   })
 }
 
-export function useAuditStats(projectId?: string | null) {
+export function useAuditStats(projectId?: string | null, environment?: string | null) {
   return useQuery({
-    queryKey: ['audit-stats', projectId],
-    queryFn: () => getAuditStats(projectId),
+    queryKey: ['audit-stats', projectId, environment],
+    queryFn: () => getAuditStats(projectId, environment),
     refetchInterval: 60_000,
   })
 }
@@ -37,15 +37,16 @@ export function useAuditDetail(id: string | null) {
   })
 }
 
-export function useAnomalyAlerts(projectId?: string | null) {
+export function useAnomalyAlerts(projectId?: string | null, environment?: string | null) {
   const sinceDate = new Date(Date.now() - 24 * 60 * 60 * 1000)
   sinceDate.setMinutes(0, 0, 0) // truncate to hour so queryKey is stable across renders
   const since = sinceDate.toISOString()
   return useQuery({
-    queryKey: ['anomaly-alerts', projectId, since],
+    queryKey: ['anomaly-alerts', projectId, environment, since],
     queryFn: () => ListAudit({
       event_type: 'system.alert',
       projectId: projectId ?? undefined,
+      environment: environment ?? undefined,
       start_date: since,
       limit: 100,
     }),

@@ -27,9 +27,10 @@ export interface AuditStats {
   timeline: TimelinePoint[]
 }
 
-export async function getAuditStats(projectId?: string | null): Promise<AuditStats> {
+export async function getAuditStats(projectId?: string | null, environment?: string | null): Promise<AuditStats> {
   const search = new URLSearchParams()
   if (projectId) search.set('project_id', projectId)
+  if (environment) search.set('environment', environment)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
   const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/stats${query}`, {

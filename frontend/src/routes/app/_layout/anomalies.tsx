@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAnomalyAlerts, useAuditDetail, useAnomalyRelatedEvents } from '@/queries/audit'
 import { useProject } from '@/lib/project-context'
+import { useEnvironment } from '@/lib/environment-context'
 
 export const Route = createFileRoute('/app/_layout/anomalies')({
   component: AnomaliesPage,
@@ -313,7 +314,8 @@ function AlertDrawer({ alert, projectId, onClose }: {
 
 function AnomaliesPage() {
   const { selectedProjectId } = useProject()
-  const { data, isLoading } = useAnomalyAlerts(selectedProjectId)
+  const { selectedEnvironment } = useEnvironment()
+  const { data, isLoading } = useAnomalyAlerts(selectedProjectId, selectedEnvironment)
   const [selectedAlert, setSelectedAlert] = React.useState<AlertSummary | null>(null)
 
   const alerts = data?.data ?? []

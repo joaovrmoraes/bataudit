@@ -40,6 +40,7 @@ export interface SessionFilters {
   service_name?: string
   start_date?: string
   end_date?: string
+  environment?: string | null
 }
 
 export async function getSessionByID(sessionID: string): Promise<SessionDetail> {
@@ -57,6 +58,7 @@ export async function getSessions(filters?: SessionFilters): Promise<Session[]> 
   if (filters?.service_name) search.set('service_name', filters.service_name)
   if (filters?.start_date) search.set('start_date', filters.start_date)
   if (filters?.end_date) search.set('end_date', filters.end_date)
+  if (filters?.environment) search.set('environment', filters.environment)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
   const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions${query}`, {

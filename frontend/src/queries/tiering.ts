@@ -5,10 +5,11 @@ export function useAuditHistory(
   projectId: string | null | undefined,
   startDate?: string,
   endDate?: string,
+  environment?: string | null,
 ) {
   return useQuery({
-    queryKey: ['audit-history', projectId, startDate, endDate],
-    queryFn: () => getAuditHistory(projectId!, startDate, endDate),
+    queryKey: ['audit-history', projectId, startDate, endDate, environment],
+    queryFn: () => getAuditHistory(projectId!, startDate, endDate, environment),
     enabled: !!projectId,
     staleTime: 5 * 60_000,
   })

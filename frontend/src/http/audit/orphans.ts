@@ -5,6 +5,7 @@ export interface OrphanFilters {
   service_name?: string
   start_date?: string
   end_date?: string
+  environment?: string | null
 }
 
 export interface OrphanEvent {
@@ -32,6 +33,7 @@ export async function getOrphans(filters?: OrphanFilters): Promise<OrphansRespon
   if (filters?.service_name) search.set('service_name', filters.service_name)
   if (filters?.start_date) search.set('start_date', filters.start_date)
   if (filters?.end_date) search.set('end_date', filters.end_date)
+  if (filters?.environment) search.set('environment', filters.environment)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
   const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/orphans${query}`, {

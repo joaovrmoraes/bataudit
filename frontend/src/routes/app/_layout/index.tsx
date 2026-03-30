@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { useAuditList, useAuditStats, useAnomalyAlerts, useOrphans } from '@/queries/audit'
 import { useAuditHistory } from '@/queries/tiering'
 import { useProject } from '@/lib/project-context'
+import { useEnvironment } from '@/lib/environment-context'
 import { getToken } from '@/lib/auth'
 import { AppPagination } from '@/components/app-pagination'
 import { EventDetailModal } from '../components/event-detail-modal'
@@ -23,7 +24,6 @@ const searchSchema = z.object({
   service_name: z.string().optional(),
   method: z.string().optional(),
   status_code: z.string().optional(),
-  environment: z.string().optional(),
   identifier: z.string().optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
@@ -81,6 +81,7 @@ function RouteComponent() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false })
   const { selectedProjectId } = useProject()
+  const { selectedEnvironment, setSelectedEnvironment } = useEnvironment()
 
   const [filterOpen, setFilterOpen] = React.useState(false)
   const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null)
@@ -94,7 +95,7 @@ function RouteComponent() {
     service_name: search.service_name,
     method: search.method,
     status_code: search.status_code,
-    environment: search.environment,
+    environment: selectedEnvironment ?? undefined,
     identifier: search.identifier,
     start_date: search.start_date,
     end_date: search.end_date,
@@ -102,12 +103,12 @@ function RouteComponent() {
     sort_order: search.sort_order,
   }
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useAuditStats(selectedProjectId)
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useAuditStats(selectedProjectId, selectedEnvironment)
   const { data: auditList, isError: auditError, refetch: refetchList } = useAuditList(page, limit, selectedProjectId, activeFilters)
-  const { data: anomalyData } = useAnomalyAlerts(selectedProjectId)
-  const { data: historyData } = useAuditHistory(selectedProjectId)
+  const { data: anomalyData } = useAnomalyAlerts(selectedProjectId, selectedEnvironment)
+  const { data: historyData } = useAuditHistory(selectedProjectId, undefined, undefined, selectedEnvironment)
   const since24h = React.useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), [])
-  const { data: orphansData } = useOrphans({ projectId: selectedProjectId, start_date: since24h })
+  const { data: orphansData } = useOrphans({ projectId: selectedProjectId, start_date: since24h, environment: selectedEnvironment })
 
   function refresh() {
     refetchStats()
@@ -511,22 +512,22 @@ function RouteComponent() {
           {/* Environment quick-filter */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {([
-              { value: '', label: 'All envs' },
+              { value: null, label: 'All envs' },
               { value: 'production', label: 'production', color: 'text-[#34d399] border-[#34d399]/50 bg-[#34d399]/10' },
               { value: 'staging', label: 'staging', color: 'text-[#60a5fa] border-[#60a5fa]/50 bg-[#60a5fa]/10' },
               { value: 'development', label: 'development', color: 'text-[#818cf8] border-[#818cf8]/50 bg-[#818cf8]/10' },
               { value: 'testing', label: 'testing', color: 'text-[#fb923c] border-[#fb923c]/50 bg-[#fb923c]/10' },
               { value: 'local', label: 'local', color: 'text-muted-foreground border-border/60 bg-muted/30' },
-            ] as const).map(env => {
-              const active = (search.environment ?? '') === env.value
+            ] as { value: string | null; label: string; color?: string }[]).map(env => {
+              const active = selectedEnvironment === env.value
               return (
                 <button
-                  key={env.value}
-                  onClick={() => setFilter('environment', env.value)}
+                  key={env.value ?? '__all__'}
+                  onClick={() => setSelectedEnvironment(env.value)}
                   className={[
                     'px-2.5 py-0.5 rounded-full border text-xs font-medium transition-colors',
                     active
-                      ? (env.value === '' ? 'bg-foreground text-background border-foreground' : env.color)
+                      ? (env.value === null ? 'bg-foreground text-background border-foreground' : env.color)
                       : 'text-muted-foreground border-border/40 hover:border-border hover:text-foreground',
                   ].join(' ')}
                 >

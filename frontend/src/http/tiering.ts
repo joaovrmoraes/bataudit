@@ -22,10 +22,12 @@ export async function getAuditHistory(
   projectId: string,
   startDate?: string,
   endDate?: string,
+  environment?: string | null,
 ): Promise<{ data: HistoryPoint[]; from: string; to: string }> {
   const params = new URLSearchParams({ project_id: projectId })
   if (startDate) params.set('start_date', startDate)
   if (endDate) params.set('end_date', endDate)
+  if (environment) params.set('environment', environment)
 
   const res = await fetch(`${BASE}/v1/audit/stats/history?${params}`, {
     headers: authHeader(),
