@@ -80,17 +80,21 @@ jobs:
     name: Deploy to Coolify
     runs-on: ubuntu-latest
     needs: build-and-push
+    env:
+      WEBHOOK_LANDING: ${{ secrets.COOLIFY_WEBHOOK_LANDING }}
+      WEBHOOK_DEMO: ${{ secrets.COOLIFY_WEBHOOK_DEMO }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
     steps:
       - name: Trigger Coolify - landing
-        if: secrets.COOLIFY_WEBHOOK_LANDING != ''
+        if: env.WEBHOOK_LANDING != ''
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
-            -X GET "${{ secrets.COOLIFY_WEBHOOK_LANDING }}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+            -X GET "$WEBHOOK_LANDING" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN"
 
       - name: Trigger Coolify - demo
-        if: secrets.COOLIFY_WEBHOOK_DEMO != ''
+        if: env.WEBHOOK_DEMO != ''
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
-            -X GET "${{ secrets.COOLIFY_WEBHOOK_DEMO }}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+            -X GET "$WEBHOOK_DEMO" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN"
