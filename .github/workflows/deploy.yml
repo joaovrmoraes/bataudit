@@ -13,6 +13,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Trigger Coolify — landing
+        if: ${{ secrets.COOLIFY_WEBHOOK_LANDING != '' }}
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
             -X GET "${{ secrets.COOLIFY_WEBHOOK_LANDING }}" \
@@ -24,6 +25,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Trigger Coolify — demo
+        if: ${{ secrets.COOLIFY_WEBHOOK_DEMO != '' }}
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
             -X GET "${{ secrets.COOLIFY_WEBHOOK_DEMO }}" \
