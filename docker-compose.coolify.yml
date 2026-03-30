@@ -168,7 +168,7 @@ services:
     image: ghcr.io/joaovrmoraes/bataudit/seed-stream:latest
     environment:
       - API_KEY=bat_demo00000000000000000000000000000000000000000000000000000000000000
-    command: ["./seed-stream", "--writer", "http://writer:8081", "--rate", "1"]
+    command: ["./seed-stream", "--writer", "http://writer:8081", "--rate", "1", "--burst-interval", "300"]
     depends_on:
       seed-anomalies:
         condition: service_completed_successfully

@@ -75,6 +75,7 @@ func main() {
 	apiKey := flag.String("project", "", "API key (X-API-Key). Falls back to API_KEY env var.")
 	rate := flag.Float64("rate", 2, "Normal events per second.")
 	duration := flag.Int("duration", 0, "Total seconds to run (0 = forever).")
+	burstInterval := flag.Int("burst-interval", 300, "Seconds between anomaly bursts (default 300 = 5min).")
 	writerURL := flag.String("writer", "http://localhost:8081", "Writer base URL.")
 	flag.Parse()
 
@@ -100,9 +101,9 @@ func main() {
 	sent := 0
 	errors := 0
 	burstCycle := 0
-	// Burst every 30 seconds: cycle through anomaly types.
+	// Burst every --burst-interval seconds: cycle through anomaly types.
 	burstTypes := []string{"error_rate", "brute_force", "mass_delete", "volume_spike"}
-	nextBurst := time.Now().Add(30 * time.Second)
+	nextBurst := time.Now().Add(time.Duration(*burstInterval) * time.Second)
 	interval := time.Duration(float64(time.Second) / *rate)
 
 	slog.Info("seed-stream started",
@@ -125,7 +126,7 @@ func main() {
 		if time.Now().After(nextBurst) {
 			btype := burstTypes[burstCycle%len(burstTypes)]
 			burstCycle++
-			nextBurst = time.Now().Add(30 * time.Second)
+			nextBurst = time.Now().Add(time.Duration(*burstInterval) * time.Second)
 
 			slog.Info(">>> anomaly burst", "type", btype)
 			n := sendBurst(client, endpoint, *apiKey, btype)
