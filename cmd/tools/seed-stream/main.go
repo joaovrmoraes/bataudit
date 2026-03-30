@@ -72,14 +72,17 @@ var normalStatus = []struct{ code, weight int }{
 }
 
 func main() {
-	apiKey := flag.String("project", "", "API key (X-API-Key). Required.")
+	apiKey := flag.String("project", "", "API key (X-API-Key). Falls back to API_KEY env var.")
 	rate := flag.Float64("rate", 2, "Normal events per second.")
 	duration := flag.Int("duration", 0, "Total seconds to run (0 = forever).")
 	writerURL := flag.String("writer", "http://localhost:8081", "Writer base URL.")
 	flag.Parse()
 
 	if *apiKey == "" {
-		slog.Error("--project is required")
+		*apiKey = os.Getenv("API_KEY")
+	}
+	if *apiKey == "" {
+		slog.Error("--project flag or API_KEY env var is required")
 		flag.Usage()
 		os.Exit(1)
 	}

@@ -3,6 +3,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"math/rand"
@@ -77,6 +79,9 @@ func main() {
 		slog.Info("demo project already exists, skipping project creation")
 	}
 
+	// Ensure a known demo API key exists (for seed-stream).
+	ensureDemoAPIKey(authRepo, project.ID)
+
 	// Check if events already seeded (avoid duplicate seeds).
 	var count int64
 	conn.Model(&audit.Audit{}).Where("project_id = ?", project.ID).Count(&count)
@@ -88,6 +93,38 @@ func main() {
 	// Seed audit events.
 	total := seedEvents(conn, project.ID)
 	slog.Info("seed complete", "events_inserted", total, "project_id", project.ID)
+}
+
+// ensureDemoAPIKey creates a fixed API key from DEMO_API_KEY env var (idempotent).
+// This allows seed-stream to use the key without needing to discover it at runtime.
+func ensureDemoAPIKey(repo auth.Repository, projectID string) {
+	rawKey := config.GetEnv("DEMO_API_KEY", "")
+	if rawKey == "" {
+		return
+	}
+
+	hash := sha256.Sum256([]byte(rawKey))
+	keyHash := hex.EncodeToString(hash[:])
+
+	// Idempotent: skip if key already exists.
+	if _, err := repo.GetAPIKeyByHash(keyHash); err == nil {
+		slog.Info("demo API key already exists")
+		return
+	}
+
+	key := &auth.APIKey{
+		ID:        uuid.New().String(),
+		KeyHash:   keyHash,
+		ProjectID: projectID,
+		Name:      "Demo Streamer Key",
+		CreatedAt: time.Now(),
+		Active:    true,
+	}
+	if err := repo.CreateAPIKey(key); err != nil {
+		slog.Warn("failed to create demo API key", "error", err)
+		return
+	}
+	slog.Info("demo API key created", "key", rawKey)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
