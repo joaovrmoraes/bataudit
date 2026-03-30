@@ -28,12 +28,164 @@
     }
   </script>
   <style>
-    body { background: #0f1117; color: #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif; }
+    /* ── Base ─────────────────────────────────────────────────────────────── */
+    body { background: #0f1117; color: #e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif; overflow-x: hidden; }
     .gradient-text { background: linear-gradient(135deg, #818cf8, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .card { background: #1e2130; border: 1px solid #2d3350; border-radius: 0.75rem; }
     pre { background: #0d1117; border: 1px solid #2d3350; border-radius: 0.5rem; overflow-x: auto; }
     code { font-family: ui-monospace, 'Cascadia Code', monospace; font-size: 0.85em; }
     .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.65rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; border: 1px solid; }
+
+    /* ── Nav ──────────────────────────────────────────────────────────────── */
+    @keyframes navDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    nav { animation: navDown 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* ── Matrix canvas ────────────────────────────────────────────────────── */
+    #matrix-canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      opacity: 0.13; pointer-events: none; z-index: 0;
+    }
+
+    /* ── Glow orbs ────────────────────────────────────────────────────────── */
+    @keyframes orbFloat1 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%     { transform: translate(40px,-50px) scale(1.08); }
+      66%     { transform: translate(-30px,30px) scale(0.94); }
+    }
+    @keyframes orbFloat2 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%     { transform: translate(-50px,40px) scale(0.92); }
+      66%     { transform: translate(35px,-25px) scale(1.06); }
+    }
+    .orb { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+    .orb-purple {
+      width: 520px; height: 520px;
+      background: radial-gradient(circle, rgba(129,140,248,0.2) 0%, transparent 70%);
+      top: -120px; left: 50%; transform: translateX(-60%);
+      animation: orbFloat1 10s ease-in-out infinite;
+    }
+    .orb-teal {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(45,212,191,0.14) 0%, transparent 70%);
+      top: 80px; right: 5%;
+      animation: orbFloat2 13s ease-in-out infinite;
+    }
+
+    /* ── Hero stagger ─────────────────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-badges { animation: fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.15s; }
+    .hero-title  { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.3s; }
+    .hero-desc   { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.45s; }
+    .hero-cta    { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.6s; }
+    .hero-arch   { animation: fadeUp 0.8s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.8s; }
+
+    /* ── Architecture ─────────────────────────────────────────────────────── */
+    .arch-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+    }
+    .arch-scroll::-webkit-scrollbar { height: 3px; }
+    .arch-scroll::-webkit-scrollbar-track { background: transparent; }
+    .arch-scroll::-webkit-scrollbar-thumb { background: #2d3350; border-radius: 2px; }
+
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      min-width: max-content;
+      margin: 0 auto;
+    }
+
+    .arch-node {
+      display: flex; align-items: center;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid;
+      font-family: ui-monospace, monospace;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+      cursor: default;
+    }
+    .arch-node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 18px 2px var(--glow);
+      border-color: var(--color) !important;
+    }
+
+    .arch-sep {
+      display: flex; align-items: center;
+      width: 56px; justify-content: center; flex-shrink: 0; gap: 3px;
+    }
+    @keyframes dotFlow {
+      0%   { opacity: 0; transform: translateX(-6px); }
+      25%  { opacity: 1; }
+      75%  { opacity: 1; }
+      100% { opacity: 0; transform: translateX(6px); }
+    }
+    .dot {
+      width: 4px; height: 4px; border-radius: 50%; background: #3d4460;
+      animation: dotFlow 1.6s ease-in-out infinite;
+      margin: 0 1px;
+    }
+    .dot:nth-child(2) { animation-delay: 0.25s; }
+    .dot:nth-child(3) { animation-delay: 0.5s; }
+
+    /* ── Scroll reveal ────────────────────────────────────────────────────── */
+    .reveal {
+      opacity: 0; transform: translateY(36px);
+      transition: opacity 0.65s cubic-bezier(0.16,1,0.3,1), transform 0.65s cubic-bezier(0.16,1,0.3,1);
+    }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+
+    /* ── Feature cards ────────────────────────────────────────────────────── */
+    .feat-card {
+      opacity: 0; transform: translateY(40px);
+      transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1),
+                  transform 0.55s cubic-bezier(0.16,1,0.3,1),
+                  border-color 0.25s, box-shadow 0.25s;
+    }
+    .feat-card.in { opacity: 1; transform: translateY(0); }
+    .feat-card:hover {
+      border-color: rgba(129,140,248,0.45) !important;
+      box-shadow: 0 0 28px rgba(129,140,248,0.1);
+      transform: translateY(-3px) !important;
+    }
+
+    /* ── Comparison table ─────────────────────────────────────────────────── */
+    .cmp-row {
+      opacity: 0; transform: translateX(-16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .cmp-row.in { opacity: 1; transform: translateX(0); }
+
+    .check { color: #34d399; font-size: 1rem; }
+    .cross { color: #f87171; font-size: 1rem; }
+    .partial { color: #fb923c; font-size: 0.75rem; font-weight: 600; }
+
+    /* ── Demo pulse ───────────────────────────────────────────────────────── */
+    @keyframes pulseRing {
+      0%  { box-shadow: 0 0 0 0 rgba(129,140,248,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(129,140,248,0); }
+      100%{ box-shadow: 0 0 0 0 rgba(129,140,248,0); }
+    }
+    .btn-pulse { animation: pulseRing 2s ease-out infinite; }
+
+    /* ── Typewriter ───────────────────────────────────────────────────────── */
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .tw-cursor {
+      display: inline-block; width: 2px; height: 1em;
+      background: #34d399; margin-left: 1px; vertical-align: text-bottom;
+      animation: blink 0.8s step-end infinite;
+    }
   </style>
 </head>
 <body>
@@ -47,7 +199,7 @@
     </div>
     <div class="flex items-center gap-4">
       <a href="#features" class="text-sm text-[#64748b] hover:text-white transition-colors hidden sm:block">Features</a>
-      <a href="#install" class="text-sm text-[#64748b] hover:text-white transition-colors hidden sm:block">Install</a>
+      <a href="#install"  class="text-sm text-[#64748b] hover:text-white transition-colors hidden sm:block">Install</a>
       <a href="https://github.com/joaovrmoraes/bataudit" target="_blank" rel="noopener"
          class="text-sm text-[#64748b] hover:text-white transition-colors flex items-center gap-1.5">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -58,90 +210,177 @@
 </nav>
 
 <!-- ── Hero ───────────────────────────────────────────────────────────────── -->
-<section class="max-w-6xl mx-auto px-6 pt-24 pb-20 text-center">
-  <div class="flex items-center justify-center gap-3 mb-6">
-    <span class="badge text-[#818cf8] border-[#818cf8]/30 bg-[#818cf8]/10">Self-Hosted</span>
-    <span class="badge text-[#34d399] border-[#34d399]/30 bg-[#34d399]/10">Open Source</span>
+<section class="relative max-w-full px-0 pt-24 pb-20 text-center overflow-hidden" style="min-height:580px">
+  <canvas id="matrix-canvas"></canvas>
+  <div class="orb orb-purple"></div>
+  <div class="orb orb-teal"></div>
+
+  <div class="relative z-10 max-w-6xl mx-auto px-6">
+    <div class="hero-badges flex items-center justify-center gap-3 mb-6">
+      <span class="badge text-[#818cf8] border-[#818cf8]/30 bg-[#818cf8]/10">Self-Hosted</span>
+      <span class="badge text-[#34d399] border-[#34d399]/30 bg-[#34d399]/10">Open Source</span>
+    </div>
+
+    <h1 class="hero-title text-4xl sm:text-6xl font-bold text-white leading-tight mb-6">
+      Audit logging that<br/>
+      <span class="gradient-text">stays on your infrastructure</span>
+    </h1>
+
+    <p class="hero-desc text-lg text-[#94a3b8] max-w-2xl mx-auto mb-10 leading-relaxed">
+      Collect, store, and query audit events from any application.
+      Real-time anomaly detection — no cloud, no external ML, no vendor lock-in.
+    </p>
+
+    <div class="hero-cta flex flex-col sm:flex-row items-center justify-center gap-3">
+      <a href="#install"
+         class="px-6 py-3 rounded-lg bg-[#818cf8] text-white font-semibold hover:bg-[#6366f1] transition-colors w-full sm:w-auto text-center">
+        Get Started →
+      </a>
+      <a href="#demo"
+         class="px-6 py-3 rounded-lg border border-[#2d3350] text-[#94a3b8] font-semibold hover:border-[#818cf8]/50 hover:text-white transition-colors w-full sm:w-auto text-center">
+        Try Demo
+      </a>
+    </div>
+
+    <!-- Architecture preview -->
+    <div class="hero-arch mt-16 card p-8 text-left">
+      <p class="text-xs text-[#64748b] uppercase tracking-widest mb-5">Architecture</p>
+      <div class="arch-scroll">
+        <div class="arch-flow">
+
+          <span class="arch-node bg-[#818cf8]/10 text-[#818cf8] border-[#818cf8]/20"
+                style="--color:#818cf8;--glow:rgba(129,140,248,0.35)">SDK / App</span>
+          <span class="arch-sep"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+
+          <span class="arch-node bg-[#34d399]/10 text-[#34d399] border-[#34d399]/20"
+                style="--color:#34d399;--glow:rgba(52,211,153,0.35)">Writer :8081</span>
+          <span class="arch-sep"><span class="dot" style="animation-delay:0.3s"></span><span class="dot" style="animation-delay:0.55s"></span><span class="dot" style="animation-delay:0.8s"></span></span>
+
+          <span class="arch-node bg-[#60a5fa]/10 text-[#60a5fa] border-[#60a5fa]/20"
+                style="--color:#60a5fa;--glow:rgba(96,165,250,0.35)">Redis</span>
+          <span class="arch-sep"><span class="dot" style="animation-delay:0.6s"></span><span class="dot" style="animation-delay:0.85s"></span><span class="dot" style="animation-delay:1.1s"></span></span>
+
+          <span class="arch-node bg-[#fb923c]/10 text-[#fb923c] border-[#fb923c]/20"
+                style="--color:#fb923c;--glow:rgba(251,146,60,0.35)">Worker</span>
+          <span class="arch-sep"><span class="dot" style="animation-delay:0.9s"></span><span class="dot" style="animation-delay:1.15s"></span><span class="dot" style="animation-delay:1.4s"></span></span>
+
+          <span class="arch-node bg-[#2dd4bf]/10 text-[#2dd4bf] border-[#2dd4bf]/20"
+                style="--color:#2dd4bf;--glow:rgba(45,212,191,0.35)">PostgreSQL</span>
+          <span class="arch-sep"><span class="dot" style="animation-delay:1.2s"></span><span class="dot" style="animation-delay:1.45s"></span><span class="dot" style="animation-delay:1.7s"></span></span>
+
+          <span class="arch-node bg-[#818cf8]/10 text-[#818cf8] border-[#818cf8]/20"
+                style="--color:#818cf8;--glow:rgba(129,140,248,0.35)">Reader :8082</span>
+
+        </div>
+      </div>
+    </div>
   </div>
+</section>
 
-  <h1 class="text-4xl sm:text-6xl font-bold text-white leading-tight mb-6">
-    Audit logging that<br/>
-    <span class="gradient-text">stays on your infrastructure</span>
-  </h1>
+<!-- ── Comparison ──────────────────────────────────────────────────────────── -->
+<section class="border-y border-[#2d3350] py-16">
+  <div class="max-w-4xl mx-auto px-6">
+    <div class="reveal text-center mb-10">
+      <p class="text-xs text-[#64748b] uppercase tracking-widest mb-2">Why BatAudit</p>
+      <h2 class="text-xl font-bold text-white">Audit logging without the enterprise bill</h2>
+    </div>
 
-  <p class="text-lg text-[#94a3b8] max-w-2xl mx-auto mb-10 leading-relaxed">
-    Collect, store, and query audit events from any application.
-    Real-time anomaly detection — no cloud, no external ML, no vendor lock-in.
-  </p>
+    <div class="card overflow-hidden">
+      <!-- Header -->
+      <div class="grid grid-cols-4 border-b border-[#2d3350] bg-[#0f1117]/50">
+        <div class="p-4 text-xs text-[#64748b] uppercase tracking-wider">Feature</div>
+        <div class="p-4 text-center">
+          <span class="text-sm font-semibold text-[#818cf8]">BatAudit</span>
+        </div>
+        <div class="p-4 text-center">
+          <span class="text-sm font-semibold text-[#64748b]">DataDog</span>
+        </div>
+        <div class="p-4 text-center">
+          <span class="text-sm font-semibold text-[#64748b]">Sentry</span>
+        </div>
+      </div>
 
-  <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-    <a href="#install"
-       class="px-6 py-3 rounded-lg bg-[#818cf8] text-white font-semibold hover:bg-[#6366f1] transition-colors w-full sm:w-auto text-center">
-      Get Started →
-    </a>
-    <a href="#demo"
-       class="px-6 py-3 rounded-lg border border-[#2d3350] text-[#94a3b8] font-semibold hover:border-[#818cf8]/50 hover:text-white transition-colors w-full sm:w-auto text-center">
-      Try Demo
-    </a>
-  </div>
-
-  <!-- Architecture preview -->
-  <div class="mt-16 card p-6 text-left max-w-3xl mx-auto">
-    <p class="text-xs text-[#64748b] uppercase tracking-widest mb-4">Architecture</p>
-    <div class="flex flex-wrap items-center gap-2 text-sm font-mono">
-      <span class="bg-[#818cf8]/10 text-[#818cf8] px-3 py-1.5 rounded border border-[#818cf8]/20">SDK / App</span>
-      <span class="text-[#64748b]">→</span>
-      <span class="bg-[#34d399]/10 text-[#34d399] px-3 py-1.5 rounded border border-[#34d399]/20">Writer :8081</span>
-      <span class="text-[#64748b]">→</span>
-      <span class="bg-[#60a5fa]/10 text-[#60a5fa] px-3 py-1.5 rounded border border-[#60a5fa]/20">Redis</span>
-      <span class="text-[#64748b]">→</span>
-      <span class="bg-[#fb923c]/10 text-[#fb923c] px-3 py-1.5 rounded border border-[#fb923c]/20">Worker</span>
-      <span class="text-[#64748b]">→</span>
-      <span class="bg-[#2dd4bf]/10 text-[#2dd4bf] px-3 py-1.5 rounded border border-[#2dd4bf]/20">PostgreSQL</span>
-      <span class="text-[#64748b]">→</span>
-      <span class="bg-[#818cf8]/10 text-[#818cf8] px-3 py-1.5 rounded border border-[#818cf8]/20">Reader :8082</span>
+      <!-- Rows -->
+      <div class="cmp-row grid grid-cols-4 border-b border-[#2d3350]/60 hover:bg-[#818cf8]/5 transition-colors" style="transition-delay:0s">
+        <div class="p-4 text-sm text-[#94a3b8]">Audit logging</div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+        <div class="p-4 text-center"><span class="partial">partial</span></div>
+        <div class="p-4 text-center"><span class="cross">✗</span></div>
+      </div>
+      <div class="cmp-row grid grid-cols-4 border-b border-[#2d3350]/60 hover:bg-[#818cf8]/5 transition-colors" style="transition-delay:0.07s">
+        <div class="p-4 text-sm text-[#94a3b8]">Self-hosted</div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+        <div class="p-4 text-center"><span class="cross">✗</span></div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+      </div>
+      <div class="cmp-row grid grid-cols-4 border-b border-[#2d3350]/60 hover:bg-[#818cf8]/5 transition-colors" style="transition-delay:0.14s">
+        <div class="p-4 text-sm text-[#94a3b8]">Anomaly detection</div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+        <div class="p-4 text-center"><span class="cross">✗</span></div>
+      </div>
+      <div class="cmp-row grid grid-cols-4 border-b border-[#2d3350]/60 hover:bg-[#818cf8]/5 transition-colors" style="transition-delay:0.21s">
+        <div class="p-4 text-sm text-[#94a3b8]">No vendor lock-in</div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+        <div class="p-4 text-center"><span class="cross">✗</span></div>
+        <div class="p-4 text-center"><span class="cross">✗</span></div>
+      </div>
+      <div class="cmp-row grid grid-cols-4 border-b border-[#2d3350]/60 hover:bg-[#818cf8]/5 transition-colors" style="transition-delay:0.28s">
+        <div class="p-4 text-sm text-[#94a3b8]">Open source</div>
+        <div class="p-4 text-center"><span class="check">✓</span></div>
+        <div class="p-4 text-center"><span class="cross">✗</span></div>
+        <div class="p-4 text-center"><span class="partial">partial</span></div>
+      </div>
+      <div class="cmp-row grid grid-cols-4 hover:bg-[#818cf8]/5 transition-colors" style="transition-delay:0.35s">
+        <div class="p-4 text-sm text-[#94a3b8]">Price</div>
+        <div class="p-4 text-center"><span class="text-[#34d399] text-sm font-semibold">Free</span></div>
+        <div class="p-4 text-center"><span class="text-[#f87171] text-xs font-medium">$15+/host/mo</span></div>
+        <div class="p-4 text-center"><span class="text-[#fb923c] text-xs font-medium">$26+/mo</span></div>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- ── Features ───────────────────────────────────────────────────────────── -->
 <section id="features" class="max-w-6xl mx-auto px-6 py-20">
-  <h2 class="text-2xl font-bold text-white text-center mb-3">Everything you need for audit logging</h2>
-  <p class="text-[#64748b] text-center mb-12">Without the cloud bill.</p>
+  <div class="reveal text-center mb-12">
+    <h2 class="text-2xl font-bold text-white mb-3">Everything you need for audit logging</h2>
+    <p class="text-[#64748b]">Without the cloud bill.</p>
+  </div>
 
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-    <div class="card p-6 space-y-3">
+    <div class="feat-card card p-6 space-y-3">
       <div class="w-9 h-9 rounded-lg bg-[#818cf8]/10 flex items-center justify-center text-[#818cf8] text-lg">📥</div>
       <h3 class="font-semibold text-white">Event Ingestion</h3>
       <p class="text-sm text-[#64748b] leading-relaxed">Send events via HTTP from any language using our SDK or a plain POST request. Events are validated, sanitized, and queued instantly.</p>
     </div>
 
-    <div class="card p-6 space-y-3">
+    <div class="feat-card card p-6 space-y-3" style="transition-delay:0.07s">
       <div class="w-9 h-9 rounded-lg bg-[#f87171]/10 flex items-center justify-center text-[#f87171] text-lg">🛡️</div>
       <h3 class="font-semibold text-white">Anomaly Detection</h3>
       <p class="text-sm text-[#64748b] leading-relaxed">Statistical engine detects volume spikes, error rate surges, brute-force attempts, mass deletions, and silent services — no ML models needed.</p>
     </div>
 
-    <div class="card p-6 space-y-3">
+    <div class="feat-card card p-6 space-y-3" style="transition-delay:0.14s">
       <div class="w-9 h-9 rounded-lg bg-[#34d399]/10 flex items-center justify-center text-[#34d399] text-lg">🔔</div>
       <h3 class="font-semibold text-white">Notifications</h3>
       <p class="text-sm text-[#64748b] leading-relaxed">Browser Push (VAPID) and Webhooks to any URL — Discord, Slack, PagerDuty, n8n. HMAC-SHA256 signatures with automatic retry.</p>
     </div>
 
-    <div class="card p-6 space-y-3">
+    <div class="feat-card card p-6 space-y-3" style="transition-delay:0.21s">
       <div class="w-9 h-9 rounded-lg bg-[#60a5fa]/10 flex items-center justify-center text-[#60a5fa] text-lg">🏢</div>
       <h3 class="font-semibold text-white">Multi-Project</h3>
       <p class="text-sm text-[#64748b] leading-relaxed">Owner / Admin / Viewer roles per project. API keys scoped to projects. Projects auto-created on first event — zero configuration.</p>
     </div>
 
-    <div class="card p-6 space-y-3">
+    <div class="feat-card card p-6 space-y-3" style="transition-delay:0.28s">
       <div class="w-9 h-9 rounded-lg bg-[#fb923c]/10 flex items-center justify-center text-[#fb923c] text-lg">📊</div>
-      <h3 class="font-semibold text-white">Export & Query</h3>
+      <h3 class="font-semibold text-white">Export &amp; Query</h3>
       <p class="text-sm text-[#64748b] leading-relaxed">Filter by service, method, status, identifier, date range. Export up to 100 000 events as CSV or JSON with a single click.</p>
     </div>
 
-    <div class="card p-6 space-y-3">
+    <div class="feat-card card p-6 space-y-3" style="transition-delay:0.35s">
       <div class="w-9 h-9 rounded-lg bg-[#2dd4bf]/10 flex items-center justify-center text-[#2dd4bf] text-lg">🗄️</div>
       <h3 class="font-semibold text-white">Data Tiering</h3>
       <p class="text-sm text-[#64748b] leading-relaxed">Raw events → hourly summaries → daily summaries. Infinite history without infinite storage. Configurable retention windows.</p>
@@ -152,7 +391,7 @@
 
 <!-- ── Demo ────────────────────────────────────────────────────────────────── -->
 <section id="demo" class="max-w-6xl mx-auto px-6 py-20">
-  <div class="card p-8 sm:p-12 text-center space-y-4">
+  <div class="reveal card p-8 sm:p-12 text-center space-y-4">
     <h2 class="text-2xl font-bold text-white">Try the live demo</h2>
     <p class="text-[#94a3b8] max-w-md mx-auto">
       Pre-loaded with realistic audit data. Read-only access — no sign-up required.
@@ -161,7 +400,7 @@
       <span class="text-sm text-[#64748b]">Login: <code class="text-[#34d399]">demo@bataudit.com</code> / <code class="text-[#34d399]">demo123</code></span>
     </div>
     <a href="https://demo.bataudit.com/app" target="_blank" rel="noopener"
-       class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#818cf8] text-white font-semibold hover:bg-[#6366f1] transition-colors">
+       class="btn-pulse inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#818cf8] text-white font-semibold hover:bg-[#6366f1] transition-colors">
       Open Demo Dashboard →
     </a>
     <p class="text-xs text-[#475569]">Demo data resets daily.</p>
@@ -170,39 +409,31 @@
 
 <!-- ── Install ─────────────────────────────────────────────────────────────── -->
 <section id="install" class="max-w-6xl mx-auto px-6 py-20">
-  <h2 class="text-2xl font-bold text-white text-center mb-3">One command to start</h2>
-  <p class="text-[#64748b] text-center mb-10">Docker Compose is the only prerequisite.</p>
+  <div class="reveal text-center mb-10">
+    <h2 class="text-2xl font-bold text-white mb-3">One command to start</h2>
+    <p class="text-[#64748b]">Docker Compose is the only prerequisite.</p>
+  </div>
 
   <div class="max-w-2xl mx-auto space-y-6">
 
-    <div class="space-y-2">
+    <div class="reveal space-y-2" style="transition-delay:0.05s">
       <p class="text-sm text-[#64748b] font-medium">1. Clone the repository</p>
       <pre class="p-4"><code class="text-[#34d399]">git clone https://github.com/joaovrmoraes/bataudit.git
 cd bataudit</code></pre>
     </div>
 
-    <div class="space-y-2">
+    <div class="reveal space-y-2" style="transition-delay:0.1s">
       <p class="text-sm text-[#64748b] font-medium">2. Start with demo data</p>
       <pre class="p-4"><code class="text-[#34d399]">docker compose -f docker-compose.demo.yml up</code></pre>
       <p class="text-xs text-[#475569]">Dashboard: <code>http://localhost:8082/app</code> &nbsp;·&nbsp; Login: <code>demo@bataudit.com / demo123</code></p>
     </div>
 
-    <div class="space-y-2">
+    <div class="reveal space-y-2" style="transition-delay:0.15s">
       <p class="text-sm text-[#64748b] font-medium">3. Send your first event</p>
-      <pre class="p-4"><code class="text-[#60a5fa]">curl -X POST http://localhost:8081/v1/audit \
-  -H <span class="text-[#fb923c]">"X-API-Key: &lt;your-api-key&gt;"</span> \
-  -H <span class="text-[#fb923c]">"Content-Type: application/json"</span> \
-  -d <span class="text-[#34d399]">'{
-    "path": "/api/users",
-    "method": "GET",
-    "status_code": 200,
-    "identifier": "user-123",
-    "service_name": "my-api",
-    "environment": "production"
-  }'</span></code></pre>
+      <pre class="p-4" id="tw-pre"><code id="tw-code" class="text-[#60a5fa]"></code></pre>
     </div>
 
-    <div class="space-y-2">
+    <div class="reveal space-y-2" style="transition-delay:0.2s">
       <p class="text-sm text-[#64748b] font-medium">Or use the Node.js SDK</p>
       <pre class="p-4"><code class="text-[#818cf8]">npm install @bataudit/node</code>
 <code class="text-[#94a3b8]">
@@ -231,6 +462,112 @@ await bat.log({ path: <span class="text-[#34d399]">'/api/users'</span>, method: 
     </div>
   </div>
 </footer>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
+<script>
+(function () {
+
+  // ── Matrix canvas ──────────────────────────────────────────────────────────
+  const canvas = document.getElementById('matrix-canvas');
+  const ctx = canvas.getContext('2d');
+  const heroSection = canvas.parentElement;
+
+  function resizeCanvas() {
+    canvas.width  = heroSection.offsetWidth;
+    canvas.height = heroSection.offsetHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const chars = '01001101000111010110001011ABCDEF{}[]<>/\\|01110100100100111⌘⌥⇧←→↑↓';
+  const fontSize = 12;
+  let cols = Math.floor(canvas.width / fontSize);
+  let drops = Array(cols).fill(0).map(() => Math.random() * -50);
+
+  function drawMatrix() {
+    cols = Math.floor(canvas.width / fontSize);
+    if (drops.length !== cols) drops = Array(cols).fill(0).map(() => Math.random() * -50);
+
+    ctx.fillStyle = 'rgba(15,17,23,0.06)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < drops.length; i++) {
+      const char = chars[Math.floor(Math.random() * chars.length)];
+      const y = drops[i] * fontSize;
+      if (y < 0) { drops[i]++; continue; }
+
+      // Head = bright, trail = dim
+      const isTeal = i % 3 === 0;
+      ctx.fillStyle = isTeal ? 'rgba(45,212,191,0.85)' : 'rgba(129,140,248,0.65)';
+      ctx.font = `${fontSize}px monospace`;
+      ctx.fillText(char, i * fontSize, y);
+
+      if (y > canvas.height && Math.random() > 0.978) drops[i] = 0;
+      drops[i] += 0.5;
+    }
+  }
+  setInterval(drawMatrix, 55);
+
+  // ── Scroll reveal ──────────────────────────────────────────────────────────
+  const revealObs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+  // ── Feature cards ──────────────────────────────────────────────────────────
+  const cardObs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); cardObs.unobserve(e.target); } });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.feat-card').forEach(el => cardObs.observe(el));
+
+  // ── Comparison rows ────────────────────────────────────────────────────────
+  const cmpObs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); cmpObs.unobserve(e.target); } });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.cmp-row').forEach(el => cmpObs.observe(el));
+
+  // ── Typewriter ─────────────────────────────────────────────────────────────
+  const twTarget = `curl -X POST http://localhost:8081/v1/audit \\
+  -H "X-API-Key: <your-api-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "path": "/api/users",
+    "method": "GET",
+    "status_code": 200,
+    "identifier": "user-123",
+    "service_name": "my-api",
+    "environment": "production"
+  }'`;
+
+  const twCode = document.getElementById('tw-code');
+  let twDone = false;
+
+  function runTypewriter() {
+    if (twDone) return;
+    twDone = true;
+    const cursor = document.createElement('span');
+    cursor.className = 'tw-cursor';
+    twCode.appendChild(cursor);
+    let i = 0;
+    function type() {
+      if (i < twTarget.length) {
+        cursor.before(document.createTextNode(twTarget[i++]));
+        setTimeout(type, 16);
+      } else {
+        setTimeout(() => cursor.remove(), 900);
+      }
+    }
+    type();
+  }
+
+  const twObs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { runTypewriter(); twObs.unobserve(e.target); } });
+  }, { threshold: 0.5 });
+  const twPre = document.getElementById('tw-pre');
+  if (twPre) twObs.observe(twPre);
+
+})();
+</script>
 
 </body>
 </html>
