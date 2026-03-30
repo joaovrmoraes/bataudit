@@ -148,33 +148,6 @@ services:
     networks:
       - bataudit
 
-  seed-anomalies:
-    image: ghcr.io/joaovrmoraes/bataudit/seed-anomalies:latest
-    environment:
-      - DB_DRIVER=postgres
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=batuser
-      - DB_PASSWORD=bataudit_demo_2024
-      - DB_NAME=batdb
-    depends_on:
-      seeder:
-        condition: service_completed_successfully
-    restart: "no"
-    networks:
-      - bataudit
-
-  streamer:
-    image: ghcr.io/joaovrmoraes/bataudit/seed-stream:latest
-    environment:
-      - API_KEY=bat_demo00000000000000000000000000000000000000000000000000000000000000
-    command: ["./seed-stream", "--writer", "http://writer:8081", "--rate", "1", "--burst-interval", "300"]
-    depends_on:
-      seed-anomalies:
-        condition: service_completed_successfully
-    restart: on-failure:5
-    networks:
-      - bataudit
 
 
 volumes:
