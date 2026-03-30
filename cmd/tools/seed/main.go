@@ -84,6 +84,9 @@ func main() {
 	// Ensure a known demo API key exists (for seed-stream).
 	ensureDemoAPIKey(authRepo, project.ID)
 
+	// Seed anomaly scenarios (always runs, has its own idempotency check).
+	seedAnomalies(conn, project.ID)
+
 	// Check if events already seeded (avoid duplicate seeds).
 	var count int64
 	conn.Model(&audit.Audit{}).Where("project_id = ?", project.ID).Count(&count)
@@ -95,9 +98,6 @@ func main() {
 	// Seed audit events.
 	total := seedEvents(conn, project.ID)
 	slog.Info("seed complete", "events_inserted", total, "project_id", project.ID)
-
-	// Seed anomaly scenarios (idempotent).
-	seedAnomalies(conn, project.ID)
 }
 
 func seedAnomalies(conn *gorm.DB, projectID string) {
