@@ -1,0 +1,103 @@
+---
+sidebar_position: 1
+title: Configuration
+---
+
+# Configuration
+
+All configuration is via environment variables. Copy `.env.example` to `.env` and edit.
+
+---
+
+## Required variables
+
+| Variable | Description |
+|---|---|
+| `JWT_SECRET` | Secret key for signing JWT tokens. Use a random 32+ character string. |
+| `INITIAL_OWNER_EMAIL` | Email for the auto-created owner account on first startup |
+| `INITIAL_OWNER_PASSWORD` | Password for the owner account |
+| `INITIAL_OWNER_NAME` | Display name for the owner |
+
+---
+
+## Database
+
+| Variable | Default | Description |
+|---|---|---|
+| `DB_DRIVER` | `postgres` | Database driver |
+| `DB_HOST` | `postgres` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_USER` | `batuser` | PostgreSQL user |
+| `DB_PASSWORD` | `batpassword` | PostgreSQL password |
+| `DB_NAME` | `batdb` | PostgreSQL database name |
+
+---
+
+## Redis / Queue
+
+| Variable | Default | Description |
+|---|---|---|
+| `REDIS_ADDRESS` | `redis:6379` | Redis host:port |
+| `QUEUE_NAME` | `bataudit:events` | Redis queue key |
+
+---
+
+## Worker autoscaling
+
+| Variable | Default | Description |
+|---|---|---|
+| `WORKER_INITIAL_COUNT` | `2` | Workers to start with |
+| `WORKER_MIN_COUNT` | `2` | Minimum concurrent workers |
+| `WORKER_MAX_COUNT` | `10` | Maximum concurrent workers |
+| `ENABLE_AUTOSCALING` | `true` | Scale workers based on queue depth |
+| `SCALE_UP_THRESHOLD` | `10` | Queue depth to trigger scale-up |
+| `SCALE_DOWN_THRESHOLD` | `2` | Queue depth to trigger scale-down |
+| `COOLDOWN_PERIOD` | `30s` | Minimum time between scaling events |
+
+---
+
+## API
+
+| Variable | Default | Description |
+|---|---|---|
+| `API_READER_PORT` | `8082` | Reader/dashboard port |
+| `GIN_MODE` | `release` | `debug` or `release` |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+
+---
+
+## Anomaly detection
+
+| Variable | Default | Description |
+|---|---|---|
+| `ANOMALY_COOLDOWN` | `5m` | Cooldown between alerts for same rule+service |
+| `ANOMALY_VOLUME_THRESHOLD` | `3.0` | Z-score threshold for volume spike |
+| `ANOMALY_ERROR_RATE_THRESHOLD` | `20.0` | Error rate % threshold |
+| `ANOMALY_BRUTE_FORCE_THRESHOLD` | `10` | 401 count for brute force detection |
+| `ANOMALY_MASS_DELETE_THRESHOLD` | `50` | DELETE count for mass delete detection |
+| `ANOMALY_SILENT_SERVICE_MINUTES` | `15` | Silence threshold in minutes |
+
+---
+
+## Data tiering
+
+| Variable | Default | Description |
+|---|---|---|
+| `TIERING_RAW_DAYS` | `30` | Days to keep raw events |
+| `TIERING_HOURLY_DAYS` | `365` | Days to keep hourly summaries |
+| `TIERING_HOUR` | `2` | Hour (UTC) to run nightly aggregation |
+
+---
+
+## Notifications
+
+| Variable | Default | Description |
+|---|---|---|
+| `VAPID_PUBLIC_KEY` | — | VAPID public key for Web Push |
+| `VAPID_PRIVATE_KEY` | — | VAPID private key |
+| `VAPID_SUBJECT` | — | `mailto:you@domain.com` |
+
+Generate persistent VAPID keys:
+```bash
+go run ./cmd/api/reader/main.go --generate-vapid
+```

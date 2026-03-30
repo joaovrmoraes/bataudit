@@ -84,6 +84,7 @@ jobs:
     env:
       WEBHOOK_LANDING: ${{ secrets.COOLIFY_WEBHOOK_LANDING }}
       WEBHOOK_DEMO: ${{ secrets.COOLIFY_WEBHOOK_DEMO }}
+      WEBHOOK_DOCS: ${{ secrets.COOLIFY_WEBHOOK_DOCS }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
     steps:
       - name: Trigger Coolify - landing
@@ -98,4 +99,11 @@ jobs:
         run: |
           curl -s -o /dev/null -w "%{http_code}" \
             -X GET "$WEBHOOK_DEMO" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN"
+
+      - name: Trigger Coolify - docs
+        if: env.WEBHOOK_DOCS != ''
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "$WEBHOOK_DOCS" \
             -H "Authorization: Bearer $COOLIFY_TOKEN"

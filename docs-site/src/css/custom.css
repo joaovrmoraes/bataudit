@@ -1,0 +1,61 @@
+/* BatAudit palette */
+:root {
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6b76f6;
+  --ifm-color-primary-darker: #5f6af5;
+  --ifm-color-primary-darkest: #3a47f1;
+  --ifm-color-primary-light: #97a2fa;
+  --ifm-color-primary-lighter: #a3aefb;
+  --ifm-color-primary-lightest: #c5cafd;
+  --ifm-code-font-size: 85%;
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-background-color: #0f1117;
+  --ifm-background-surface-color: #1e2130;
+  --ifm-navbar-background-color: #0f1117;
+  --ifm-footer-background-color: #0d1117;
+  --ifm-toc-border-color: #2d3350;
+  --ifm-color-emphasis-300: #2d3350;
+  --ifm-hr-border-color: #2d3350;
+  --ifm-menu-color-background-active: rgba(129, 140, 248, 0.1);
+  --ifm-menu-color-background-hover: rgba(129, 140, 248, 0.06);
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.12);
+}
+
+/* Navbar border */
+.navbar {
+  border-bottom: 1px solid #2d3350;
+  box-shadow: none;
+}
+
+/* Sidebar */
+.menu__link--active {
+  color: #818cf8 !important;
+}
+
+/* Code blocks */
+[data-theme='dark'] .prism-code {
+  background: #0d1117 !important;
+}
+
+/* Admonitions */
+[data-theme='dark'] .alert {
+  background: #1e2130;
+  border-color: #2d3350;
+}
+
+/* Tables */
+[data-theme='dark'] table tr:nth-child(2n) {
+  background: #1e2130;
+}
+
+[data-theme='dark'] table th {
+  background: #0d1117;
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid #2d3350;
+}
