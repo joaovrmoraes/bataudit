@@ -36,7 +36,7 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-1">
-          <img src="/bat-logo.png" alt="BatAudit" className="w-16 h-16 object-contain mx-auto" />
+          <img src="/app/bat-logo.png" alt="BatAudit" className="w-16 h-16 object-contain mx-auto" />
           <h1 className="text-2xl font-bold text-foreground">BatAudit</h1>
           <p className="text-sm text-muted-foreground">Sign in to your account</p>
         </div>

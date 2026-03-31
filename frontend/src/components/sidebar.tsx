@@ -29,7 +29,7 @@ export function Sidebar() {
     <aside className="w-56 h-screen flex flex-col bg-sidebar border-r border-sidebar-border shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-3 h-16 px-4 border-b border-sidebar-border">
-        <img src="/bat-logo.png" alt="BatAudit" className="w-9 h-9 object-contain shrink-0" />
+        <img src="/app/bat-logo.png" alt="BatAudit" className="w-9 h-9 object-contain shrink-0" />
         <div className="min-w-0">
           <p className="font-semibold text-sm text-sidebar-foreground leading-tight">BatAudit</p>
           <p className="text-xs text-muted-foreground">Monitoring</p>
