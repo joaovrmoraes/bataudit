@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic'
 const config: Config = {
   title: 'BatAudit Docs',
   tagline: 'Self-hosted audit logging for SaaS',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.png',
 
   url: 'https://docs.bataudit.com',
   baseUrl: '/',
@@ -47,6 +47,10 @@ const config: Config = {
 
     navbar: {
       title: 'BatAudit',
+      logo: {
+        alt: 'BatAudit logo',
+        src: 'img/bat.png',
+      },
       items: [
         {
           type: 'docSidebar',
