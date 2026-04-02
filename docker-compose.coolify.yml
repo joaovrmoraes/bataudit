@@ -39,6 +39,7 @@ services:
 
   writer:
     image: ghcr.io/joaovrmoraes/bataudit/writer:latest
+    pull_policy: always
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -71,6 +72,7 @@ services:
 
   reader:
     image: ghcr.io/joaovrmoraes/bataudit/reader:latest
+    pull_policy: always
     labels:
       - traefik.http.services.reader.loadbalancer.server.port=8082
     environment:
@@ -102,6 +104,7 @@ services:
 
   worker:
     image: ghcr.io/joaovrmoraes/bataudit/worker:latest
+    pull_policy: always
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -130,6 +133,7 @@ services:
 
   seeder:
     image: ghcr.io/joaovrmoraes/bataudit/seeder:latest
+    pull_policy: always
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -150,6 +154,7 @@ services:
 
   streamer:
     image: ghcr.io/joaovrmoraes/bataudit/seed-stream:latest
+    pull_policy: always
     environment:
       - API_KEY=bat_demo00000000000000000000000000000000000000000000000000000000000000
     command: ["./seed-stream", "--writer", "http://writer:8081", "--rate", "1", "--burst-interval", "300"]

@@ -8,6 +8,8 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppLayoutRouteImport } from './routes/app/_layout'
@@ -19,15 +21,21 @@ import { Route as AppLayoutSettingsRetentionRouteImport } from './routes/app/_la
 import { Route as AppLayoutSettingsNotificationsRouteImport } from './routes/app/_layout/settings/notifications'
 import { Route as AppLayoutSettingsApiKeysRouteImport } from './routes/app/_layout/settings/api-keys'
 
+const AppRouteImport = createFileRoute('/app')()
+
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppLayoutRoute = AppLayoutRouteImport.update({
-  id: '/app/_layout',
-  path: '/app',
-  getParentRoute: () => rootRouteImport,
+  id: '/_layout',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppLayoutIndexRoute = AppLayoutIndexRouteImport.update({
   id: '/',
@@ -81,10 +89,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/app': typeof AppLayoutIndexRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
-  '/app': typeof AppLayoutIndexRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
@@ -92,6 +100,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/login': typeof LoginRoute
+  '/app': typeof AppRouteWithChildren
   '/app/_layout': typeof AppLayoutRouteWithChildren
   '/app/_layout/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/_layout/members': typeof AppLayoutMembersRoute
@@ -116,16 +125,17 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/app'
     | '/app/anomalies'
     | '/app/members'
     | '/app/sessions'
-    | '/app'
     | '/app/settings/api-keys'
     | '/app/settings/notifications'
     | '/app/settings/retention'
   id:
     | '__root__'
     | '/login'
+    | '/app'
     | '/app/_layout'
     | '/app/_layout/anomalies'
     | '/app/_layout/members'
@@ -138,11 +148,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
-  AppLayoutRoute: typeof AppLayoutRouteWithChildren
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -155,7 +172,7 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppLayoutRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/_layout/': {
       id: '/app/_layout/'
@@ -233,9 +250,19 @@ const AppLayoutRouteWithChildren = AppLayoutRoute._addFileChildren(
   AppLayoutRouteChildren,
 )
 
+interface AppRouteChildren {
+  AppLayoutRoute: typeof AppLayoutRouteWithChildren
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppLayoutRoute: AppLayoutRouteWithChildren,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
-  AppLayoutRoute: AppLayoutRouteWithChildren,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

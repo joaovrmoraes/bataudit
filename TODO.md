@@ -631,7 +631,15 @@ Prefixar todas as rotas com `/v1/` desde o início. Barato de fazer agora, caro 
 - [ ] Configurar secrets no GitHub Actions (`SSH_KEY`, `STAGING_HOST`, etc.)
 - [ ] Notificar no canal de dev (Slack/Discord/email) ao fim do deploy
 
-### 12.4 Versionamento semântico
+### 12.4 Path-based CI/CD (otimização)
+
+- [ ] **CI backend** só roda quando arquivos fora de `frontend/` e `landing/` mudam (`paths:` no ci.yml)
+- [ ] **CI frontend** só roda quando arquivos dentro de `frontend/` mudam
+- [ ] **Release** (build das imagens Docker) só dispara quando `cmd/`, `internal/` ou arquivos Go do root mudam — não a cada mudança de frontend ou landing
+- [ ] **Deploy landing** só dispara quando arquivos dentro de `landing/` mudam
+- [ ] **Deploy demo** só dispara quando serviços backend (`cmd/`, `internal/`) mudam — imagem nova disponível no GHCR
+
+### 12.5 Versionamento semântico
 
 - [x] Adotar [Conventional Commits](https://www.conventionalcommits.org/) como padrão
 - [x] Criar workflow que gera `CHANGELOG.md` e tag de versão automaticamente via `release-please` ou `semantic-release`
@@ -767,6 +775,288 @@ Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 →
 - Fase 18 (demo online) depende da Fase 12 (CI/CD) para ter pipeline de deploy automatizado
 - Fase 12.1 (CI) pode ser iniciada a qualquer momento, mas o valor máximo vem depois da Fase 9 (testes) estar pronta
 - Fase 12.2 e 12.3 (build + deploy) fazem mais sentido após a Fase 3 (autenticação) e antes de lançar os SDKs públicos (Fase 7/8)
+
+---
+
+## Fase 21 — Healthcheck Monitor
+
+**Objetivo:** Configurar URLs de healthcheck por projeto e ter o BatAudit pingando periodicamente — fechando o loop entre auditoria ("o que aconteceu") e uptime ("o app ainda está de pé").
+
+**Contexto:** Times pequenos usam Betterstack ou UptimeRobot separado do audit log. O BatAudit já tem Worker, notificações e eventos `system.*` — healthcheck se encaixa naturalmente sem nova infraestrutura.
+
+### 21.1 Modelo de dados
+
+- [ ] Criar tabela `healthcheck_monitors` (id, project_id, name, url, interval_seconds, timeout_seconds, expected_status, enabled, last_status `up|down|unknown`, last_checked_at, created_at, updated_at)
+- [ ] Criar tabela `healthcheck_results` (id, monitor_id, status `up|down`, status_code, response_ms, error, checked_at)
+- [ ] Criar migration para as tabelas acima
+- [ ] Limite: máximo 10 monitors por projeto (validar no handler)
+
+### 21.2 Backend — endpoints (Reader, protegidos por JWT)
+
+- [ ] `POST /v1/monitors` — criar monitor (name, url, interval_seconds, timeout_seconds, expected_status)
+- [ ] `GET /v1/monitors` — listar monitors do projeto com `last_status` e `last_checked_at`
+- [ ] `PUT /v1/monitors/:id` — editar monitor
+- [ ] `DELETE /v1/monitors/:id` — remover monitor
+- [ ] `GET /v1/monitors/:id/history` — últimos N resultados do monitor (paginado)
+
+### 21.3 Worker — goroutine de polling
+
+- [ ] Criar `internal/healthcheck/monitor.go` — lógica de polling por monitor
+- [ ] Goroutine `runHealthcheckMonitors` iniciada no `cmd/api/worker/main.go`
+- [ ] Ao iniciar: carregar todos os monitors ativos do banco
+- [ ] Recarregar configs a cada 60s (novos monitors adicionados via dashboard entram automaticamente)
+- [ ] Para cada monitor: `time.Ticker` com o `interval_seconds` configurado
+- [ ] A cada tick: fazer `GET` na URL com timeout configurado
+- [ ] Avaliar: status code == expected_status → UP, caso contrário → DOWN
+- [ ] Atualizar `last_status` e `last_checked_at` na tabela `healthcheck_monitors`
+- [ ] Inserir resultado em `healthcheck_results`
+- [ ] Manter apenas os últimos 200 resultados por monitor (limpar os mais antigos)
+
+### 21.4 Eventos e notificações
+
+- [ ] Na transição UP→DOWN: gravar evento `system.healthcheck.down` no audit log (campos: `url`, `status_code`, `response_ms`, `error`, `expected_status`)
+- [ ] Na transição DOWN→UP: gravar evento `system.healthcheck.up` (campos: `url`, `status_code`, `response_ms`, `downtime_seconds`)
+- [ ] Só notifica na transição de estado — não a cada check falho (sem spam)
+- [ ] Disparar notificação via sistema existente (Web Push + Webhook) igual às anomalias
+- [ ] Payload da notificação: `"[NomeDoMonitor] está unhealthy — /health retornou 503 (esperado 200)"`
+- [ ] Recovery notification opcional (configurável por monitor)
+
+### 21.5 Dashboard
+
+- [ ] Tabela de breakdown por serviço (Fase 6.3) ganha coluna `Health` — badge colorido: 🟢 UP / 🔴 DOWN / ⚪ sem monitor
+- [ ] Badge usa `last_status` do monitor associado ao `service_name`
+- [ ] Página de configurações → nova seção "Healthcheck Monitors"
+  - [ ] Listagem de monitors com status atual, URL, intervalo, último check
+  - [ ] Formulário de criação/edição
+  - [ ] Botão "Testar agora" — dispara um check imediato e exibe o resultado
+  - [ ] Toggle ativar/desativar por monitor
+
+---
+
+## Fase 22 — Error Rate por Rota
+
+**Objetivo:** Detector novo que calcula taxa de erro por rota em tempo real. Quando uma rota estoura erros, o time vê antes de qualquer reclamação de usuário — e sabe exatamente quem foi afetado.
+
+**Contexto:** A Fase 13 detecta anomalias de volume geral e taxa de erro global. Esta fase adiciona granularidade: por rota específica. É o maior caso de uso do BatAudit — "saber que o João tentou fazer checkout 3 vezes e falhou antes de ele abrir ticket".
+
+**Dependência:** Fase 13 (Anomaly Detection) concluída.
+
+### 22.1 Detector no Worker
+
+- [ ] Criar detector `error_rate_by_route` em `internal/anomaly/`
+- [ ] Sliding window por `(project_id, path, method)` nos últimos X minutos (configurável, padrão: 5min)
+- [ ] Calcular: `erros (4xx+5xx) / total requests` por rota
+- [ ] Threshold configurável por projeto (padrão: >10% de taxa de erro com mínimo de 10 requests na janela)
+- [ ] Ao ultrapassar threshold: gravar evento `system.alert` com `rule_type: "error_rate_by_route"` e `metadata`: `{ path, method, error_rate, total_requests, error_count, window_seconds }`
+- [ ] Cooldown: não gerar novo alerta para a mesma rota por 10min após o primeiro
+
+### 22.2 Backend — usuários afetados
+
+- [ ] Endpoint `GET /v1/audit/affected-users?path=...&method=...&start=...&end=...`
+- [ ] Retorna lista de `{ identifier, user_email, user_name, error_count, last_seen }` que bateram na rota com erro no período
+- [ ] Ordenado por `error_count` desc
+- [ ] Usado pelo dashboard normal (não pelo wallboard) para ação proativa de suporte
+
+### 22.3 Dashboard
+
+- [ ] Card "Rotas com problema" na página de anomalias — lista rotas com `error_rate_by_route` ativo nas últimas 24h
+- [ ] Ao clicar numa rota → drawer/modal com lista de usuários afetados (`GET /v1/audit/affected-users`)
+- [ ] Exibir: `identifier`, `user_email`, `error_count`, `last_seen` — contexto completo para suporte proativo
+
+---
+
+## Fase 23 — Wallboard (TV Dashboard)
+
+**Objetivo:** Rota `/tv` com layout pensado para TV ou monitor do escritório — leitura de longe, sem interação, atualização automática. Em 3 segundos olhando pra tela, qualquer pessoa sabe se tem algo errado.
+
+**Dependências:** Fase 21 (Healthcheck Monitor) para badges de saúde. Fase 22 (Error Rate por Rota) para rotas em evidência.
+
+### 23.1 Auth read-only (novo tipo de token)
+
+- [ ] Novo tipo de token `display_token` na tabela `api_keys` (ou tabela separada `display_tokens`)
+- [ ] Campos: id, project_id, token_hash, expires_at (padrão: 30 dias), created_at
+- [ ] Endpoint `POST /v1/display-tokens` — gerar token read-only para o projeto
+- [ ] Endpoint `DELETE /v1/display-tokens/:id` — revogar token
+- [ ] Middleware `DisplayTokenMiddleware` — valida o token, injeta project_id no contexto, só permite rotas de leitura
+- [ ] Gerar QR Code no frontend a partir da URL completa (`/tv?token=...`) — usar biblioteca client-side (ex: `qrcode`)
+- [ ] Alternativa de acesso: código de 6 dígitos alfanumérico exibido junto ao QR
+
+### 23.2 Backend — endpoints para o wallboard
+
+- [ ] `GET /v1/wallboard/summary` — retorna: eventos hoje, erros hoje, sessões ativas (protegido por DisplayTokenMiddleware)
+- [ ] `GET /v1/wallboard/feed` — últimos 20 eventos (method, path, status_code, response_ms, service_name) para o feed ao vivo
+- [ ] `GET /v1/wallboard/volume` — série temporal das últimas 2h por bucket de 5min
+- [ ] `GET /v1/wallboard/health` — lista de monitors com `last_status` e `response_ms`
+- [ ] `GET /v1/wallboard/alerts` — anomalias ativas (geradas nas últimas 30min, não resolvidas)
+- [ ] `GET /v1/wallboard/error-routes` — rotas com error rate ativo (da Fase 22)
+- [ ] Todos os endpoints aceitam `display_token` via query param ou header `X-Display-Token`
+
+### 23.3 Frontend — rota `/tv`
+
+- [ ] Nova rota `/tv` no TanStack Router — layout completamente diferente do dashboard normal
+- [ ] Sem sidebar, sem header de navegação — fullscreen
+- [ ] Auto-refresh global a cada 10s (polling de todos os endpoints do wallboard)
+- [ ] Dark mode sempre ativo independente da preferência do usuário
+- [ ] Font size aumentado — legível de 2-3 metros
+
+**Blocos do layout:**
+- [ ] Header: nome do projeto + relógio em tempo real + indicador de "última atualização"
+- [ ] Contadores grandes: total eventos hoje, erros hoje, sessões ativas
+- [ ] Badges de saúde por serviço (UP/DOWN com cor imediata) — dados da Fase 21
+- [ ] Feed ao vivo: últimos eventos rolando, badge de status com cor semântica, ❌ em erros
+- [ ] Gráfico de volume das últimas 2h (barras simples, sem interação)
+- [ ] Banner de anomalia: aparece na base da tela em laranja/vermelho pulsando quando há alerta ativo — some sozinho quando passa
+- [ ] Card de rotas em evidência: vermelho pulsando com nome da rota + taxa de erro — aparece só quando há `error_rate_by_route` ativo
+- [ ] Auto-rotate entre projetos se o token for de owner com múltiplos projetos (intervalo configurável)
+
+**Configuração no dashboard normal:**
+- [ ] Settings → nova seção "Wallboard" com botão "Gerar link de acesso"
+- [ ] Exibe QR Code + URL copiável + código de 6 dígitos
+- [ ] Botão "Revogar acesso" para invalidar o token atual
+
+---
+
+## Fase 24 — Relatório Mês a Mês
+
+**Objetivo:** Comparativo automático mês anterior vs atual para managers e tech leads — sem precisar pedir para o dev "me manda um resumo do mês".
+
+**Contexto:** `audit_summaries` da Fase 16 já tem dados agregados por dia. Esta fase consome esses dados e apresenta a evolução temporal de forma legível por qualquer pessoa.
+
+### 24.1 Backend
+
+- [ ] Endpoint `GET /v1/reports/monthly?month=2026-03` — retorna comparativo do mês solicitado vs mês anterior
+- [ ] Campos retornados:
+  - `total_events`: mês atual vs anterior + variação percentual
+  - `total_errors`: mês atual vs anterior + variação percentual
+  - `error_rate`: taxa geral + variação
+  - `avg_response_ms`: tempo médio + variação
+  - `top_error_routes`: top 5 rotas com mais erros no mês (path, method, error_count, error_rate)
+  - `most_affected_users`: top 5 usuários que mais encontraram erros (identifier, error_count)
+  - `weekly_breakdown`: volume de eventos por semana do mês (para o gráfico de evolução)
+  - `services_summary`: por serviço — eventos, erros, avg_ms
+- [ ] Fonte de dados: `audit_summaries` com `period_type = day` (já existe da Fase 16)
+- [ ] Fallback para eventos crus se o tiering ainda não rodou no mês corrente
+
+### 24.2 Dashboard
+
+- [ ] Nova página "Relatórios" no sidebar
+- [ ] Seletor de mês (mês atual por padrão)
+- [ ] Cards de comparativo: valor do mês + delta vs mês anterior com seta ↑↓ e cor (verde = melhora, vermelho = piora)
+  - Total de eventos (crescimento de uso — neutro)
+  - Total de erros (vermelho se subiu, verde se caiu)
+  - Taxa de erro geral
+  - Tempo médio de resposta
+- [ ] Gráfico de linha: evolução semanal de eventos vs erros no mês
+- [ ] Tabela "Top rotas com erro no mês" — path, método, contagem, taxa
+- [ ] Tabela "Usuários mais afetados" — identifier, email, contagem de erros
+- [ ] Botão "Exportar relatório" — gera CSV/PDF com todos os dados (usa export da Fase 15 como base)
+
+---
+
+## Fase 25 — Publicação dos SDKs no npm + CI/CD
+
+**Objetivo:** Publicar `@bataudit/node` e `@bataudit/browser` no npm e automatizar publicações futuras via GitHub Actions.
+
+**Contexto:** Os SDKs existem e têm testes, mas nunca foram publicados. A documentação referencia `@bataudit/sdk` em alguns lugares — isso precisa ser corrigido para `@bataudit/node` e `@bataudit/browser` antes de publicar para não confundir quem for instalar.
+
+### 25.1 Corrigir referências na documentação
+
+- [ ] Buscar todas as ocorrências de `@bataudit/sdk` no repo (`README.md`, `docs/`, `landing/`, `sdks/`) e corrigir para o nome correto do pacote (`@bataudit/node` ou `@bataudit/browser` conforme o contexto)
+
+### 25.2 Ajustar package.json dos dois SDKs
+
+- [ ] Adicionar campo `repository` nos dois `package.json`:
+  ```json
+  "repository": { "type": "git", "url": "https://github.com/joaovrmoraes/bataudit" }
+  ```
+- [ ] Adicionar campo `license`: `"MIT"`
+- [ ] Adicionar campo `homepage` apontando para o README do SDK
+- [ ] Adicionar campo `bugs` apontando para as issues do GitHub
+- [ ] Adicionar campo `publishConfig`: `{ "access": "public" }`
+- [ ] Verificar campo `files` — garantir que só `dist/` vai pro npm (sem `src/`, sem `tests/`)
+- [ ] Adicionar script `"prepublishOnly": "npm run build && npm test"` — garante build + testes antes de qualquer publish
+
+### 25.3 Garantir que o build funciona
+
+- [ ] Rodar `pnpm build` em `sdks/node/` — verificar que `dist/` é gerado corretamente com `.js` + `.d.ts`
+- [ ] Rodar `pnpm build` em `sdks/browser/` — idem
+- [ ] Rodar `pnpm test` em ambos — os 27 + 25 testes devem passar
+- [ ] Fazer dry-run do publish: `npm publish --dry-run` em cada SDK para ver o que seria enviado
+
+### 25.4 Primeira publicação manual
+
+- [ ] Criar conta no npm (se ainda não tiver) e criar a org `@bataudit`
+- [ ] Logar via `npm login`
+- [ ] Publicar `@bataudit/node`: `cd sdks/node && npm publish`
+- [ ] Publicar `@bataudit/browser`: `cd sdks/browser && npm publish`
+- [ ] Verificar no npmjs.com que os pacotes aparecem corretamente
+
+### 25.5 CI/CD — workflow de publicação automática
+
+- [ ] Criar `.github/workflows/publish-sdk.yml`
+- [ ] Disparar em tags com padrão `sdk-v*` (ex: `sdk-v0.1.1` publica os dois) ou padrões separados `sdk-node-v*` e `sdk-browser-v*`
+- [ ] Jobs:
+
+```yaml
+# Estrutura do workflow
+on:
+  push:
+    tags:
+      - 'sdk-v*'        # publica os dois juntos
+      - 'sdk-node-v*'   # publica só o node
+      - 'sdk-browser-v*' # publica só o browser
+
+jobs:
+  publish-node:
+    if: startsWith(github.ref, 'refs/tags/sdk-v') || startsWith(github.ref, 'refs/tags/sdk-node-v')
+    steps:
+      - checkout
+      - setup node com registry npmjs
+      - pnpm install em sdks/node/
+      - pnpm test
+      - pnpm build
+      - npm publish (usando NPM_TOKEN do GitHub secret)
+
+  publish-browser:
+    if: startsWith(github.ref, 'refs/tags/sdk-v') || startsWith(github.ref, 'refs/tags/sdk-browser-v')
+    steps: (mesmo padrão)
+```
+
+- [ ] Adicionar secret `NPM_TOKEN` no GitHub repo (gerar em npmjs.com → Access Tokens → Automation)
+- [ ] Adicionar detecção de mudanças nos SDKs no `ci.yml` — rodar testes de `sdks/node/` e `sdks/browser/` quando arquivos em `sdks/` mudam
+
+### 25.6 Versionamento dos SDKs
+
+- [ ] Definir estratégia: versionar SDKs junto com o backend (`v1.2.0`) ou independente
+- [ ] Documentar no `CONTRIBUTING.md` como fazer release de SDK (criar tag `sdk-v0.2.0`)
+
+---
+
+## Fase 26 — Usage Analytics (Rankings)
+
+**Objetivo:** Aba "Insights" no dashboard com rankings de uso — quais endpoints são mais acessados, quais usuários são mais ativos, quais rotas têm mais erro e mais latência. Voltado para devs e produto.
+
+**Contexto:** Zero migration necessária — todos os dados já existem em `audit_events`. Backend é `GROUP BY` simples. Frontend é uma tela nova com período selecionável.
+
+### 26.1 Backend
+
+- [ ] Endpoint `GET /v1/audit/insights/top-endpoints` — top 10 `(path, method)` por `COUNT(*)`, filtrável por período
+- [ ] Endpoint `GET /v1/audit/insights/top-users` — top 10 `user_id` por contagem de eventos, com `user_email` e `user_name`
+- [ ] Endpoint `GET /v1/audit/insights/top-error-routes` — top 10 `(path, method)` por `COUNT(*) WHERE status_code >= 400`, inclui error rate %
+- [ ] Endpoint `GET /v1/audit/insights/top-slow-routes` — top 10 `(path, method)` por `AVG(duration_ms)` (e p95 se possível)
+- [ ] Todos aceitam query params `?period=7d|30d|90d` e `?project_id=`
+- [ ] Adicionar rotas ao Swagger
+
+### 26.2 Frontend
+
+- [ ] Nova aba ou página "Insights" no sidebar
+- [ ] Seletor de período: 7d / 30d / 90d (padrão: 7d)
+- [ ] 4 cards de ranking lado a lado (ou 2x2 em tela menor):
+  - Top 10 endpoints mais acessados (path + method + contagem)
+  - Top 10 usuários mais ativos (identifier + email + contagem de eventos)
+  - Top 10 rotas com mais erro (path + method + contagem + error rate %)
+  - Top 10 rotas mais lentas (path + method + avg_ms)
+- [ ] Cada card é uma tabela simples com rank numérico, sem paginação
 
 ---
 

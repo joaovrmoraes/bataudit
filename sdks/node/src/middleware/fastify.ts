@@ -30,13 +30,13 @@ export function applyBatAuditPlugin(fastify: FastifyInstance, config: BatAuditCo
   fastify.addHook('onRequest', async (request, reply) => {
     const incoming = request.headers['x-request-id']
     const requestId = typeof incoming === 'string' ? incoming : client.generateRequestId()
-    ;(request as Record<string, unknown>)._batRequestId = requestId
+    ;(request as unknown as Record<string, unknown>)._batRequestId = requestId
     reply.header('X-Request-ID', requestId)
   })
 
   fastify.addHook('onResponse', async (request, reply) => {
     const user = request.bataudit ?? {}
-    const requestId = (request as Record<string, unknown>)._batRequestId as string ?? client.generateRequestId()
+    const requestId = (request as unknown as Record<string, unknown>)._batRequestId as string ?? client.generateRequestId()
     const query = (request.query ?? {}) as Record<string, unknown>
     const params = (request.params ?? {}) as Record<string, unknown>
 
