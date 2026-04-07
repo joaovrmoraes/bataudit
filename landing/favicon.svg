@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background rounded square -->
+  <rect width="100" height="100" rx="18" fill="#1e2130"/>
+  <!-- Bat -->
+  <g fill="#9b72cf" transform="translate(50,54)">
+    <!-- Left wing -->
+    <path d="M-2 -8 C-8 -14 -20 -20 -40 -24 C-46 -18 -46 -8 -40 -4 C-32 -8 -22 -9 -12 -6 Z"/>
+    <!-- Right wing -->
+    <path d="M2 -8 C8 -14 20 -20 40 -24 C46 -18 46 -8 40 -4 C32 -8 22 -9 12 -6 Z"/>
+    <!-- Left lower lobe -->
+    <path d="M-40 -4 C-44 4 -36 8 -28 4 C-22 1 -16 -3 -12 -6 Z"/>
+    <!-- Right lower lobe -->
+    <path d="M40 -4 C44 4 36 8 28 4 C22 1 16 -3 12 -6 Z"/>
+    <!-- Body -->
+    <ellipse cx="0" cy="-2" rx="10" ry="13"/>
+    <!-- Left ear -->
+    <path d="M-38 -23 L-33 -32 L-28 -23 Z"/>
+    <!-- Right ear -->
+    <path d="M28 -23 L33 -32 L38 -23 Z"/>
+  </g>
+</svg>

@@ -8,3 +8,7 @@
 #builds
 */frontend/dist
 *.exe
+
+# Docs site
+node_modules/
+.docusaurus/

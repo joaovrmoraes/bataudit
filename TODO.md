@@ -1063,3 +1063,39 @@ jobs:
 ## Backlog — Melhorias Pontuais
 
 - [ ] **Filtro por `environment` no dashboard** — adicionar selector de environment (prod, staging, dev, local, testing) na página de eventos/audit list, integrado com o filtro `?environment=` já existente na API (`GET /v1/audit`)
+
+---
+
+## Bugfix Backlog
+
+### 🚨 PRIORIDADE 1 — 🐳 Docker / Docker Compose
+
+> Esses três itens são um único PR. Resolver juntos. Bloqueia qualquer pessoa de rodar em produção.
+
+- [ ] **`docker-compose.yml` desatualizado — dividido em dois arquivos sem necessidade** — o `docker-compose.yml` só tem Postgres e Redis (esqueleto antigo). O arquivo real e completo é o `docker-compose.services.yml`, que já tem Writer, Reader, Worker, healthchecks e `depends_on: service_healthy`. Ninguém que clonar o repo vai saber que precisa rodar o `services.yml`. Fix: mesclar tudo no `docker-compose.yml` (torná-lo o arquivo completo de produção) e deletar o `docker-compose.services.yml`.
+- [ ] **`docker-compose.yml` não carrega `.env`** — os arquivos `.yml` (incluindo `docker-compose.coolify.yml`) não estão lendo as variáveis do `.env` corretamente. Verificar uso de `env_file:` vs `environment:` vs `--env-file` e garantir que todos os serviços recebem as variáveis esperadas.
+- [ ] **Todos os serviços sobem ao mesmo tempo — spike de CPU/RAM na inicialização** — o Compose sobe PostgreSQL, Redis, Writer, Reader e Worker em paralelo. Durante o boot do Postgres (incluindo migrations) a máquina topa, inviabilizando deploy em instâncias pequenas como t3.micro. Fix: `healthcheck` real no `postgres` e `redis`, `depends_on: condition: service_healthy` nos demais. Após iniciado, o BatAudit é leve e roda tranquilo num t3.micro.
+
+### 🔴 PRIORIDADE 2 — 🔐 Autenticação — Token Expirado
+
+- [ ] **Sem refresh token e sem auto-logout** — quando o JWT expira, a aplicação não tenta renovar o token (não há endpoint de refresh token implementado) e também não desloga o usuário automaticamente (a sessão fica "presa" com token inválido). Corrigir: implementar endpoint `POST /v1/auth/refresh` com refresh token de longa duração, ou ao detectar 401 no frontend, redirecionar para o login e limpar o estado de autenticação.
+
+### 🔴 PRIORIDADE 3 — 🔑 API Keys
+
+- [ ] **Nome de API Key travado** — ao criar uma API Key, o campo `name` está com validação muito restritiva (só aceita determinados formatos). O usuário deveria poder digitar qualquer nome livre para identificar a key (ex: "Produção backend", "CI/CD pipeline", etc.). Relaxar a validação para aceitar qualquer string não-vazia.
+
+### 🟡 PRIORIDADE 4 — 🔔 Push Notifications
+
+- [ ] **Web Push não está funcionando** — as notificações push (VAPID) configuradas na Fase 14 não estão sendo entregues. Investigar: registro do service worker no frontend, geração e envio do payload VAPID no backend, e erros de permissão ou subscription inválida.
+
+### 🟡 PRIORIDADE 5 — 📚 Documentação (Docusaurus)
+
+> Depende do P1 (Docker) estar resolvido — não adianta escrever tutorial de produção com o compose errado.
+
+- [ ] **Tutorial de produção** — criar guia de como rodar o BatAudit em ambiente de **produção real** (não o demo). Atualmente a documentação foca no `docker-compose.demo.yml`; precisa de uma seção para `docker-compose.yml` / `docker-compose.coolify.yml` com variáveis de ambiente, HTTPS, etc.
+- [ ] **Tutorial de setup com PostgreSQL** — revisar/criar guia claro para PostgreSQL, separado do demo.
+- [ ] **Tutorial de setup com SQLite** — adicionar guia no Docusaurus para rodar o BatAudit com SQLite (sem precisar de PostgreSQL). Depende do P6 estar implementado.
+
+### 🟢 PRIORIDADE 6 — 🗄️ SQLite — Suporte alternativo ao PostgreSQL
+
+- [ ] **Suporte a SQLite via GORM** — permitir que o BatAudit rode com SQLite como banco de dados alternativo ao PostgreSQL (útil para self-host simples, sem servidor de banco externo). Ajustar a inicialização do GORM para detectar `DB_DRIVER=sqlite` e usar o driver correto. Verificar compatibilidade das migrations e queries.
