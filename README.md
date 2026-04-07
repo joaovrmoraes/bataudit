@@ -76,16 +76,10 @@ docker compose -f docker-compose.demo.yml down -v
 - Go 1.24+
 - Node.js 20+ with pnpm (frontend only)
 
-### Infrastructure only (Postgres + Redis)
-
-```bash
-docker compose up -d
-```
-
 ### Full stack in Docker
 
 ```bash
-docker compose -f docker-compose.services.yml up -d
+docker compose up -d
 ```
 
 ### Locally (backend)

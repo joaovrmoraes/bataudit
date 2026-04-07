@@ -1,7 +1,16 @@
-## BatAudit — Production Docker Compose
-## Usage: docker compose up -d
-## Copy .env.example to .env and adjust the values before running.
-## Dashboard: http://localhost:8082/app
+## BatAudit — Slim / Resource-constrained test
+##
+## Simulates a 0.5 vCPU / 500 MB host (t3.micro, Fly.io shared-cpu-1x, etc.)
+## Services start sequentially via depends_on: service_healthy.
+##
+## Usage:
+##   Pre-built images (default):
+##     docker compose -f docker-compose.slim.yml up
+##
+##   Build from source:
+##     docker compose -f docker-compose.slim.yml up --build
+##
+## Requires .env — copy from .env.example and adjust values.
 
 version: '3.8'
 
@@ -11,43 +20,51 @@ services:
 
   postgres:
     image: bitnami/postgresql:latest
-    container_name: bat_postgres
+    container_name: bat_slim_postgres
     environment:
       - POSTGRESQL_USERNAME=${DB_USER:-batuser}
       - POSTGRESQL_PASSWORD=${DB_PASSWORD:-batpassword}
       - POSTGRESQL_DATABASE=${DB_NAME:-batdb}
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_data:/bitnami/postgresql
+      - slim_postgres_data:/bitnami/postgresql
     networks:
-      - bataudit-network
+      - bataudit-slim
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-batuser} -d ${DB_NAME:-batdb}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 192M
 
   redis:
     image: redis:alpine
-    container_name: bat_redis
-    ports:
-      - "6379:6379"
+    container_name: bat_slim_redis
     networks:
-      - bataudit-network
+      - bataudit-slim
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.05"
+          memory: 64M
 
   # ── BatAudit services ────────────────────────────────────────────────────────
 
   writer:
+    image: ghcr.io/joaovrmoraes/bataudit/writer:latest
     build:
       context: .
       dockerfile: cmd/api/writer/Dockerfile
-    container_name: bat_writer
+    container_name: bat_slim_writer
+    pull_policy: missing
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -66,19 +83,26 @@ services:
         condition: service_healthy
     restart: on-failure:3
     networks:
-      - bataudit-network
+      - bataudit-slim
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
       interval: 10s
       timeout: 15s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.08"
+          memory: 80M
 
   reader:
+    image: ghcr.io/joaovrmoraes/bataudit/reader:latest
     build:
       context: .
       dockerfile: cmd/api/reader/Dockerfile
-    container_name: bat_reader
+    container_name: bat_slim_reader
+    pull_policy: missing
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -97,21 +121,30 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      writer:
+        condition: service_healthy
     restart: on-failure:3
     networks:
-      - bataudit-network
+      - bataudit-slim
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
       interval: 10s
       timeout: 15s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.08"
+          memory: 80M
 
   worker:
+    image: ghcr.io/joaovrmoraes/bataudit/worker:latest
     build:
       context: .
       dockerfile: cmd/api/worker/Dockerfile
-    container_name: bat_worker
+    container_name: bat_slim_worker
+    pull_policy: missing
     environment:
       - DB_DRIVER=postgres
       - DB_HOST=postgres
@@ -120,14 +153,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-batpassword}
       - DB_NAME=${DB_NAME:-batdb}
       - REDIS_ADDRESS=redis:6379
-      - WORKER_INITIAL_COUNT=${WORKER_INITIAL_COUNT:-2}
-      - WORKER_MIN_COUNT=${WORKER_MIN_COUNT:-2}
-      - WORKER_MAX_COUNT=${WORKER_MAX_COUNT:-10}
-      - ENABLE_AUTOSCALING=${ENABLE_AUTOSCALING:-true}
-      - SCALE_UP_THRESHOLD=${SCALE_UP_THRESHOLD:-5}
-      - SCALE_DOWN_THRESHOLD=${SCALE_DOWN_THRESHOLD:-1}
-      - WORKER_SCALE_FACTOR=${WORKER_SCALE_FACTOR:-1.5}
-      - COOLDOWN_PERIOD=${COOLDOWN_PERIOD:-30s}
+      - WORKER_INITIAL_COUNT=2
+      - WORKER_MIN_COUNT=2
+      - WORKER_MAX_COUNT=4
+      - ENABLE_AUTOSCALING=true
+      - SCALE_UP_THRESHOLD=5
+      - SCALE_DOWN_THRESHOLD=1
+      - WORKER_SCALE_FACTOR=1.5
+      - COOLDOWN_PERIOD=30s
       - QUEUE_NAME=${QUEUE_NAME:-bataudit:events}
     depends_on:
       postgres:
@@ -138,12 +171,17 @@ services:
         condition: service_healthy
     restart: on-failure:3
     networks:
-      - bataudit-network
+      - bataudit-slim
+    deploy:
+      resources:
+        limits:
+          cpus: "0.09"
+          memory: 64M
 
 volumes:
-  postgres_data:
+  slim_postgres_data:
     driver: local
 
 networks:
-  bataudit-network:
+  bataudit-slim:
     driver: bridge
