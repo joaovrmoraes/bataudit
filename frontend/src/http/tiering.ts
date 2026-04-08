@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -29,17 +29,14 @@ export async function getAuditHistory(
   if (endDate) params.set('end_date', endDate)
   if (environment) params.set('environment', environment)
 
-  const res = await fetch(`${BASE}/v1/audit/stats/history?${params}`, {
-    headers: authHeader(),
-  })
+  const res = await fetchWithAuth(`${BASE}/v1/audit/stats/history?${params}`)
   if (!res.ok) throw new Error('Failed to fetch history')
   return res.json()
 }
 
 export async function getUsageStat(projectId: string): Promise<UsageStat> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${BASE}/v1/audit/stats/usage?project_id=${encodeURIComponent(projectId)}`,
-    { headers: authHeader() },
   )
   if (!res.ok) throw new Error('Failed to fetch usage')
   return res.json()

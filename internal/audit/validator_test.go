@@ -83,7 +83,7 @@ func TestValidateIP_InvalidIP(t *testing.T) {
 
 func TestValidateEnvironment_ValidValues(t *testing.T) {
 	v := newValidator()
-	for _, env := range []string{"production", "staging", "development", "testing", "local"} {
+	for _, env := range []string{"production", "staging", "development", "testing", "local", "qa", "alpha", "preview", "homolog", "ci"} {
 		a := validBase()
 		a.Environment = env
 		assert.NoError(t, v.Struct(&a), "env %s should be valid", env)
@@ -93,7 +93,7 @@ func TestValidateEnvironment_ValidValues(t *testing.T) {
 func TestValidateEnvironment_InvalidValue(t *testing.T) {
 	v := newValidator()
 	a := validBase()
-	a.Environment = "unknown"
+	a.Environment = "invalid env!" // spaces and special chars not allowed
 	assert.Error(t, v.Struct(&a))
 }
 

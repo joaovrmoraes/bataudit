@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface ServiceBreakdown {
   service_name: string
@@ -33,9 +33,7 @@ export async function getAuditStats(projectId?: string | null, environment?: str
   if (environment) search.set('environment', environment)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/stats${query}`, {
-    headers: { ...authHeader() },
-  })
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/stats${query}`)
 
   if (!res.ok) throw new Error('Failed to fetch stats')
   return res.json()

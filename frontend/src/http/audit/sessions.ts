@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface Session {
   identifier: string
@@ -44,9 +44,7 @@ export interface SessionFilters {
 }
 
 export async function getSessionByID(sessionID: string): Promise<SessionDetail> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions/${encodeURIComponent(sessionID)}`, {
-    headers: { ...authHeader() },
-  })
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions/${encodeURIComponent(sessionID)}`)
   if (!res.ok) throw new Error('Session not found')
   return res.json()
 }
@@ -61,9 +59,7 @@ export async function getSessions(filters?: SessionFilters): Promise<Session[]> 
   if (filters?.environment) search.set('environment', filters.environment)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions${query}`, {
-    headers: { ...authHeader() },
-  })
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/sessions${query}`)
   if (!res.ok) throw new Error('Failed to fetch sessions')
   const data = await res.json()
   return data.data ?? []

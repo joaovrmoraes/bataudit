@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface Member {
   user_id: string
@@ -9,9 +9,8 @@ export interface Member {
 }
 
 export async function listMembers(projectId: string): Promise<Member[]> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members`,
-    { headers: { ...authHeader() } },
   )
   if (!res.ok) throw new Error('Failed to list members')
   const data = await res.json()
@@ -23,11 +22,11 @@ export async function addMember(
   email: string,
   role: Member['role'],
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members`,
     {
       method: 'POST',
-      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, role }),
     },
   )
@@ -42,11 +41,11 @@ export async function updateMemberRole(
   userId: string,
   role: Member['role'],
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members/${userId}`,
     {
       method: 'PATCH',
-      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
     },
   )
@@ -57,9 +56,9 @@ export async function removeMember(
   projectId: string,
   userId: string,
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects/${projectId}/members/${userId}`,
-    { method: 'DELETE', headers: { ...authHeader() } },
+    { method: 'DELETE' },
   )
   if (!res.ok) throw new Error('Failed to remove member')
 }

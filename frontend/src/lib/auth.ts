@@ -32,8 +32,24 @@ export function getUser(): StoredUser | null {
   }
 }
 
+export function isTokenExpired(): boolean {
+  const token = getToken()
+  if (!token) return true
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
+}
+
 export function isAuthenticated(): boolean {
-  return !!getToken()
+  if (!getToken()) return false
+  if (isTokenExpired()) {
+    clearAuth()
+    return false
+  }
+  return true
 }
 
 export function authHeader(): Record<string, string> {

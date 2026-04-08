@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface Project {
   id: string
@@ -9,8 +9,8 @@ export interface Project {
 }
 
 export async function listProjects(): Promise<Project[]> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects`, {
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects`, {
+    headers: { 'Content-Type': 'application/json' },
   })
   if (!res.ok) throw new Error('Failed to list projects')
   const data = await res.json()
@@ -18,9 +18,9 @@ export async function listProjects(): Promise<Project[]> {
 }
 
 export async function createProject(name: string, slug: string): Promise<Project> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects`, {
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/auth/projects`, {
     method: 'POST',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, slug }),
   })
   if (!res.ok) {

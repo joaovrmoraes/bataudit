@@ -25,6 +25,10 @@ type Database struct {
 
 func LoadConfig() Database {
 	_ = godotenv.Load()
+	sqlitePath := os.Getenv("SQLITE_PATH")
+	if sqlitePath == "" {
+		sqlitePath = "bataudit.db"
+	}
 	return Database{
 		Driver:     DatabaseDriver(os.Getenv("DB_DRIVER")),
 		User:       os.Getenv("DB_USER"),
@@ -32,6 +36,6 @@ func LoadConfig() Database {
 		Name:       os.Getenv("DB_NAME"),
 		Host:       os.Getenv("DB_HOST"),
 		Port:       os.Getenv("DB_PORT"),
-		SQLitePath: os.Getenv("SQLITE_PATH"),
+		SQLitePath: sqlitePath,
 	}
 }

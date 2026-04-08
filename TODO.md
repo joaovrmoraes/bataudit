@@ -1076,26 +1076,24 @@ jobs:
 - [x] **`docker-compose.yml` não carrega `.env`** — os arquivos `.yml` (incluindo `docker-compose.coolify.yml`) não estão lendo as variáveis do `.env` corretamente. Verificar uso de `env_file:` vs `environment:` vs `--env-file` e garantir que todos os serviços recebem as variáveis esperadas.
 - [x] **Todos os serviços sobem ao mesmo tempo — spike de CPU/RAM na inicialização** — o Compose sobe PostgreSQL, Redis, Writer, Reader e Worker em paralelo. Durante o boot do Postgres (incluindo migrations) a máquina topa, inviabilizando deploy em instâncias pequenas como t3.micro. Fix: `healthcheck` real no `postgres` e `redis`, `depends_on: condition: service_healthy` nos demais. Após iniciado, o BatAudit é leve e roda tranquilo num t3.micro.
 
-### 🔴 PRIORIDADE 2 — 🔐 Autenticação — Token Expirado
+### ~~🔴 PRIORIDADE 2 — 🔐 Autenticação — Token Expirado~~ ✅ RESOLVIDO
 
-- [ ] **Sem refresh token e sem auto-logout** — quando o JWT expira, a aplicação não tenta renovar o token (não há endpoint de refresh token implementado) e também não desloga o usuário automaticamente (a sessão fica "presa" com token inválido). Corrigir: implementar endpoint `POST /v1/auth/refresh` com refresh token de longa duração, ou ao detectar 401 no frontend, redirecionar para o login e limpar o estado de autenticação.
+- [x] **Sem refresh token e sem auto-logout** — implementado auto-logout no frontend: `isTokenExpired()` decodifica o JWT e verifica `exp`; `isAuthenticated()` chama `clearAuth()` se expirado; `fetchWithAuth` centraliza o header de `Authorization` e redireciona para `/login` em qualquer 401. Todos os arquivos `src/http/` foram migrados para `fetchWithAuth`.
 
-### 🔴 PRIORIDADE 3 — 🔑 API Keys
+### ~~🔴 PRIORIDADE 3 — 🔑 API Keys~~ ✅ RESOLVIDO
 
-- [ ] **Nome de API Key travado** — ao criar uma API Key, o campo `name` está com validação muito restritiva (só aceita determinados formatos). O usuário deveria poder digitar qualquer nome livre para identificar a key (ex: "Produção backend", "CI/CD pipeline", etc.). Relaxar a validação para aceitar qualquer string não-vazia.
+- [x] **Validação de `environment` travada** — o campo `environment` dos eventos de auditoria só aceitava: `production, staging, development, testing, local`. Corrigido: `validateEnvironment` agora aceita qualquer string no formato `[a-zA-Z0-9][a-zA-Z0-9\-_.]{0,99}` (qa, alpha, homolog, preview, ci, etc.). Testes atualizados.
 
-### 🟡 PRIORIDADE 4 — 🔔 Push Notifications
+### ~~🟡 PRIORIDADE 4 — 🔔 Push Notifications~~ ✅ RESOLVIDO
 
-- [ ] **Web Push não está funcionando** — as notificações push (VAPID) configuradas na Fase 14 não estão sendo entregues. Investigar: registro do service worker no frontend, geração e envio do payload VAPID no backend, e erros de permissão ou subscription inválida.
+- [x] **Web Push não estava funcionando** — 4 bugs corrigidos: (1) `GenerateVAPIDKeys` wrapper retornava (priv, pub) ao invés de (pub, priv) — a biblioteca retorna `(privateKey, publicKey)` e o wrapper não compensava; (2) VAPID keys não estavam no `.env` nem nos compose files — Worker recebia strings vazias e rejeitava com "VAPID keys not configured"; (3) `subscribePush` era `Promise<void>` e descartava o channel UUID retornado pelo backend; (4) frontend armazenava `sub.endpoint` em vez do `channel.id` para o unsubscribe. Adicionado `useEffect` que detecta subscription existente via `pushManager.getSubscription()` ao montar, persistindo o `channel.id` no `localStorage`.
 
-### 🟡 PRIORIDADE 5 — 📚 Documentação (Docusaurus)
+### ~~🟡 PRIORIDADE 5 — 📚 Documentação (Docusaurus)~~ ✅ RESOLVIDO
 
-> Depende do P1 (Docker) estar resolvido — não adianta escrever tutorial de produção com o compose errado.
+- [x] **Tutorial de produção** — `self-hosting/production.md` reescrito: setup completo com `.env`, VAPID keys, reverse proxy (Caddy + Nginx), Coolify, backups, upgrade e security checklist.
+- [x] **Tutorial de setup com PostgreSQL** — `self-hosting/postgresql.md` criado: quando usar, env vars, compose bundled, PostgreSQL externo, SSL, backups, performance tips.
+- [x] **Tutorial de setup com SQLite** — `self-hosting/sqlite.md` criado: quando usar, compose mínimo sem PostgreSQL, rodando sem Docker, migrations, backups, limitações. `cmd/tools/gen-vapid` criado para gerar VAPID keys. `configuration.md` atualizado com `SQLITE_PATH` e link correto para gen-vapid. Sidebars atualizado.
 
-- [ ] **Tutorial de produção** — criar guia de como rodar o BatAudit em ambiente de **produção real** (não o demo). Atualmente a documentação foca no `docker-compose.demo.yml`; precisa de uma seção para `docker-compose.yml` / `docker-compose.coolify.yml` com variáveis de ambiente, HTTPS, etc.
-- [ ] **Tutorial de setup com PostgreSQL** — revisar/criar guia claro para PostgreSQL, separado do demo.
-- [ ] **Tutorial de setup com SQLite** — adicionar guia no Docusaurus para rodar o BatAudit com SQLite (sem precisar de PostgreSQL). Depende do P6 estar implementado.
+### ~~🟢 PRIORIDADE 6 — 🗄️ SQLite — Suporte alternativo ao PostgreSQL~~ ✅ RESOLVIDO
 
-### 🟢 PRIORIDADE 6 — 🗄️ SQLite — Suporte alternativo ao PostgreSQL
-
-- [ ] **Suporte a SQLite via GORM** — permitir que o BatAudit rode com SQLite como banco de dados alternativo ao PostgreSQL (útil para self-host simples, sem servidor de banco externo). Ajustar a inicialização do GORM para detectar `DB_DRIVER=sqlite` e usar o driver correto. Verificar compatibilidade das migrations e queries.
+- [x] **Suporte a SQLite via GORM** — migrations SQLite criadas em `internal/db/migrations/sqlite/` (16 arquivos up/down) com tipos compatíveis: `JSONB→TEXT`, `TIMESTAMPTZ→DATETIME`, `DEFAULT NOW()→DEFAULT CURRENT_TIMESTAMP`, `UUID PRIMARY KEY DEFAULT gen_random_uuid()→TEXT PRIMARY KEY`. `RunMigrations` agora usa o diretório correto por driver. WAL mode + busy_timeout aplicados via GORM `Exec` após conexão. `SQLITE_PATH` tem default `bataudit.db`. Smoke test: todas as 10 tabelas criadas corretamente com `DB_DRIVER=sqlite`.

@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface AuditDetail {
   id: string
@@ -26,9 +26,7 @@ export interface AuditDetail {
 }
 
 export async function getAuditDetail(id: string): Promise<AuditDetail> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/${id}`, {
-    headers: { ...authHeader() },
-  })
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/${id}`)
   if (!res.ok) throw new Error('Failed to fetch audit detail')
   return res.json()
 }

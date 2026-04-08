@@ -24,12 +24,15 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 
 | Variable | Default | Description |
 |---|---|---|
-| `DB_DRIVER` | `postgres` | Database driver |
-| `DB_HOST` | `postgres` | PostgreSQL host |
-| `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_USER` | `batuser` | PostgreSQL user |
-| `DB_PASSWORD` | `batpassword` | PostgreSQL password |
-| `DB_NAME` | `batdb` | PostgreSQL database name |
+| `DB_DRIVER` | `postgres` | Database driver: `postgres` or `sqlite` |
+| `DB_HOST` | `postgres` | PostgreSQL host (postgres only) |
+| `DB_PORT` | `5432` | PostgreSQL port (postgres only) |
+| `DB_USER` | `batuser` | PostgreSQL user (postgres only) |
+| `DB_PASSWORD` | `batpassword` | PostgreSQL password (postgres only) |
+| `DB_NAME` | `batdb` | PostgreSQL database name (postgres only) |
+| `SQLITE_PATH` | `bataudit.db` | SQLite file path (sqlite only) |
+
+See [PostgreSQL setup](./postgresql) and [SQLite setup](./sqlite) for driver-specific guides.
 
 ---
 
@@ -97,7 +100,11 @@ All configuration is via environment variables. Copy `.env.example` to `.env` an
 | `VAPID_PRIVATE_KEY` | — | VAPID private key |
 | `VAPID_SUBJECT` | — | `mailto:you@domain.com` |
 
-Generate persistent VAPID keys:
+Generate persistent VAPID keys (run once, add output to `.env`):
 ```bash
-go run ./cmd/api/reader/main.go --generate-vapid
+go run ./cmd/tools/gen-vapid
 ```
+
+:::tip
+Run this once and commit the generated values to your `.env` file. If `VAPID_PUBLIC_KEY` is missing, the Reader generates ephemeral keys on startup — subscribers created with those keys will break on restart.
+:::

@@ -4,7 +4,6 @@ import (
 	"net"
 	"net/mail"
 	"regexp"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -42,23 +41,15 @@ func validateIP(fl validator.FieldLevel) bool {
 	return parsedIP != nil
 }
 
-// validateEnvironment - verifies if the environment is one of the allowed values
+// validateEnvironment - verifies if the environment is a non-empty string with valid characters
 func validateEnvironment(fl validator.FieldLevel) bool {
-	env := strings.ToLower(fl.Field().String())
-
+	env := fl.Field().String()
 	if env == "" {
 		return false
 	}
-
-	validEnvs := map[string]bool{
-		"production":  true,
-		"staging":     true,
-		"development": true,
-		"testing":     true,
-		"local":       true,
-	}
-
-	return validEnvs[env]
+	validEnvPattern := `^[a-zA-Z0-9][a-zA-Z0-9\-_.]{0,99}$`
+	match, err := regexp.MatchString(validEnvPattern, env)
+	return err == nil && match
 }
 
 // validateEmail - verifies if the email address is valid
@@ -127,7 +118,7 @@ func FormatValidationError(err validator.FieldError) string {
 	case "valid_http_method":
 		return "Invalid HTTP method. Allowed: GET, POST, PUT, DELETE"
 	case "valid_environment":
-		return "Invalid environment. Allowed: production, staging, development, testing, local"
+		return "Invalid environment. Use only letters, numbers, hyphen, dot, and underscore (max 100 chars)"
 	case "valid_ip":
 		return "Invalid IP address"
 	case "valid_url":

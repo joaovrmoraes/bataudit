@@ -46,6 +46,8 @@ const sidebars: SidebarsConfig = {
       items: [
         'self-hosting/configuration',
         'self-hosting/production',
+        'self-hosting/postgresql',
+        'self-hosting/sqlite',
       ],
     },
   ],

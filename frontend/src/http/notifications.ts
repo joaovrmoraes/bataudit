@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -24,27 +24,26 @@ export interface Delivery {
 // ── Push ──────────────────────────────────────────────────────────────────────
 
 export async function getVapidPublicKey(): Promise<string> {
-  const res = await fetch(`${BASE}/v1/notifications/push/vapid-public-key`, {
-    headers: authHeader(),
-  })
+  const res = await fetchWithAuth(`${BASE}/v1/notifications/push/vapid-public-key`)
   if (!res.ok) throw new Error('Failed to fetch VAPID key')
   const data = await res.json()
   return data.public_key as string
 }
 
-export async function subscribePush(projectId: string, subscription: PushSubscription): Promise<void> {
-  const res = await fetch(`${BASE}/v1/notifications/push/subscribe`, {
+export async function subscribePush(projectId: string, subscription: PushSubscription): Promise<{ id: string }> {
+  const res = await fetchWithAuth(`${BASE}/v1/notifications/push/subscribe`, {
     method: 'POST',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project_id: projectId, subscription: subscription.toJSON() }),
   })
   if (!res.ok) throw new Error('Failed to subscribe')
+  return res.json()
 }
 
 export async function unsubscribePush(projectId: string, channelId: string): Promise<void> {
-  const res = await fetch(`${BASE}/v1/notifications/push/subscribe`, {
+  const res = await fetchWithAuth(`${BASE}/v1/notifications/push/subscribe`, {
     method: 'DELETE',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project_id: projectId, channel_id: channelId }),
   })
   if (!res.ok) throw new Error('Failed to unsubscribe')
@@ -53,9 +52,8 @@ export async function unsubscribePush(projectId: string, channelId: string): Pro
 // ── Webhooks ──────────────────────────────────────────────────────────────────
 
 export async function listWebhooks(projectId: string): Promise<WebhookChannel[]> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${BASE}/v1/notifications/webhooks?project_id=${encodeURIComponent(projectId)}`,
-    { headers: authHeader() },
   )
   if (!res.ok) throw new Error('Failed to list webhooks')
   return res.json()
@@ -66,9 +64,9 @@ export async function createWebhook(
   url: string,
   secret?: string,
 ): Promise<WebhookChannel> {
-  const res = await fetch(`${BASE}/v1/notifications/webhooks`, {
+  const res = await fetchWithAuth(`${BASE}/v1/notifications/webhooks`, {
     method: 'POST',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project_id: projectId, url, secret }),
   })
   if (!res.ok) throw new Error('Failed to create webhook')
@@ -76,9 +74,9 @@ export async function createWebhook(
 }
 
 export async function deleteWebhook(projectId: string, webhookId: string): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${BASE}/v1/notifications/webhooks/${webhookId}?project_id=${encodeURIComponent(projectId)}`,
-    { method: 'DELETE', headers: authHeader() },
+    { method: 'DELETE' },
   )
   if (!res.ok) throw new Error('Failed to delete webhook')
 }
@@ -87,18 +85,16 @@ export async function testWebhook(
   projectId: string,
   webhookId: string,
 ): Promise<{ status_code: number; response: string }> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${BASE}/v1/notifications/webhooks/${webhookId}/test?project_id=${encodeURIComponent(projectId)}`,
-    { method: 'POST', headers: authHeader() },
+    { method: 'POST' },
   )
   if (!res.ok) throw new Error('Webhook test failed')
   return res.json()
 }
 
 export async function listDeliveries(webhookId: string): Promise<Delivery[]> {
-  const res = await fetch(`${BASE}/v1/notifications/webhooks/${webhookId}/deliveries`, {
-    headers: authHeader(),
-  })
+  const res = await fetchWithAuth(`${BASE}/v1/notifications/webhooks/${webhookId}/deliveries`)
   if (!res.ok) throw new Error('Failed to list deliveries')
   return res.json()
 }

@@ -171,6 +171,8 @@ func (s *Sender) sendPush(ctx context.Context, ch Channel, payload AlertPayload)
 
 // GenerateVAPIDKeys generates a new VAPID key pair.
 // Call once and persist the returned keys as VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY env vars.
+// webpush-go returns (privateKey, publicKey) — we swap here so callers get (pub, priv).
 func GenerateVAPIDKeys() (pub, priv string, err error) {
-	return webpush.GenerateVAPIDKeys()
+	priv, pub, err = webpush.GenerateVAPIDKeys()
+	return
 }

@@ -17,19 +17,21 @@ import (
 )
 
 func RunMigrations(config *Database) error {
-	var dsn string
+	var dsn, migrationsPath string
 	switch config.Driver {
 	case "postgres":
 		dsn = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			config.User, config.Password, config.Host, config.Port, config.Name)
+		migrationsPath = "file://internal/db/migrations"
 	case "sqlite":
 		dsn = "sqlite3://" + config.SQLitePath
+		migrationsPath = "file://internal/db/migrations/sqlite"
 	default:
 		return fmt.Errorf("unsupported driver: %s", config.Driver)
 	}
 
 	m, err := migrate.New(
-		"file://internal/db/migrations",
+		migrationsPath,
 		dsn,
 	)
 	if err != nil {
@@ -68,6 +70,9 @@ func Init() (*gorm.DB, error) {
 		db, err = gorm.Open(sqlite.Open("file:"+config.SQLitePath+"?_pragma=foreign_keys(1)"), &gorm.Config{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to sqlite: %w", err)
+		}
+		if err := db.Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;").Error; err != nil {
+			return nil, fmt.Errorf("failed to configure sqlite pragmas: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported database driver: %s", config.Driver)

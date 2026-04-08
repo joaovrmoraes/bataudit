@@ -22,7 +22,8 @@ export function useVapidPublicKey() {
 
 export function useSubscribePush(projectId: string) {
   return useMutation({
-    mutationFn: (subscription: PushSubscription) => subscribePush(projectId, subscription),
+    mutationFn: (subscription: PushSubscription): Promise<{ id: string }> =>
+      subscribePush(projectId, subscription),
   })
 }
 

@@ -1,5 +1,5 @@
 import type { UUID } from 'node:crypto'
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface AuditSummary {
   id: string
@@ -65,9 +65,9 @@ export async function ListAudit(
   if (params?.event_type) search.set('event_type', params.event_type)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit${query}`, {
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit${query}`, {
     method: 'GET',
-    headers: { ...authHeader(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
   })
 
   if (!res.ok) throw new Error('Failed to fetch audit events')

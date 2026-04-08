@@ -92,6 +92,8 @@ services:
       - INITIAL_OWNER_NAME=${INITIAL_OWNER_NAME:-Admin}
       - INITIAL_OWNER_EMAIL=${INITIAL_OWNER_EMAIL:-admin@bataudit.local}
       - INITIAL_OWNER_PASSWORD=${INITIAL_OWNER_PASSWORD:-admin123}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
     ports:
       - "8082:8082"
     depends_on:
@@ -129,6 +131,9 @@ services:
       - WORKER_SCALE_FACTOR=${WORKER_SCALE_FACTOR:-1.5}
       - COOLDOWN_PERIOD=${COOLDOWN_PERIOD:-30s}
       - QUEUE_NAME=${QUEUE_NAME:-bataudit:events}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@bataudit.local}
     depends_on:
       postgres:
         condition: service_healthy

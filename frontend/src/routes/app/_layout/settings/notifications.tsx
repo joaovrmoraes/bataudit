@@ -15,6 +15,8 @@ export const Route = createFileRoute('/app/_layout/settings/notifications')({
 
 // ── Push section ──────────────────────────────────────────────────────────────
 
+const PUSH_CHANNEL_KEY = 'bat_push_channel_id'
+
 function PushSection({ projectId }: { projectId: string }) {
   const { data: vapidKey } = useVapidPublicKey()
   const [pushStatus, setPushStatus] = React.useState<'idle' | 'active' | 'error'>('idle')
@@ -22,6 +24,21 @@ function PushSection({ projectId }: { projectId: string }) {
   const [errorMsg, setErrorMsg] = React.useState('')
   const subscribe = useSubscribePush(projectId)
   const unsubscribe = useUnsubscribePush(projectId)
+
+  // Detect existing subscription on mount
+  React.useEffect(() => {
+    const stored = localStorage.getItem(`${PUSH_CHANNEL_KEY}:${projectId}`)
+    if (!stored) return
+    navigator.serviceWorker?.getRegistration('/sw.js').then(async (reg) => {
+      const sub = await reg?.pushManager.getSubscription()
+      if (sub) {
+        setChannelId(stored)
+        setPushStatus('active')
+      } else {
+        localStorage.removeItem(`${PUSH_CHANNEL_KEY}:${projectId}`)
+      }
+    })
+  }, [projectId])
 
   async function handleEnable() {
     setErrorMsg('')
@@ -44,9 +61,9 @@ function PushSection({ projectId }: { projectId: string }) {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       })
-      await subscribe.mutateAsync(sub)
-      // The channel ID would come from the API response; storing sub endpoint as identifier
-      setChannelId(sub.endpoint)
+      const channel = await subscribe.mutateAsync(sub)
+      setChannelId(channel.id)
+      localStorage.setItem(`${PUSH_CHANNEL_KEY}:${projectId}`, channel.id)
       setPushStatus('active')
     } catch (e) {
       setErrorMsg(String(e))
@@ -61,6 +78,7 @@ function PushSection({ projectId }: { projectId: string }) {
       const reg = await navigator.serviceWorker.getRegistration('/sw.js')
       const sub = await reg?.pushManager.getSubscription()
       await sub?.unsubscribe()
+      localStorage.removeItem(`${PUSH_CHANNEL_KEY}:${projectId}`)
       setPushStatus('idle')
       setChannelId(null)
     } catch (e) {

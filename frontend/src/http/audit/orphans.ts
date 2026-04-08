@@ -1,4 +1,4 @@
-import { authHeader } from '@/lib/auth'
+import { fetchWithAuth } from '@/lib/api'
 
 export interface OrphanFilters {
   projectId?: string | null
@@ -36,9 +36,7 @@ export async function getOrphans(filters?: OrphanFilters): Promise<OrphansRespon
   if (filters?.environment) search.set('environment', filters.environment)
   const query = search.size > 0 ? `?${search.toString()}` : ''
 
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/orphans${query}`, {
-    headers: { ...authHeader() },
-  })
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/orphans${query}`)
   if (!res.ok) throw new Error('Failed to fetch orphan events')
   return res.json()
 }
