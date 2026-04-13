@@ -142,8 +142,8 @@ function HealthCarousel({ entries }: { entries: { name: string; last_status: str
     <div>
       {slice.map((h, i) => (
         <div key={i} className="flex items-center gap-2 py-1.5 border-b border-slate-700/30 last:border-0">
-          <span className={`text-xs font-bold shrink-0 w-6 ${h.last_status === 'UP' ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
-            {h.last_status === 'UP' ? '↑' : '↓'}
+          <span className={`text-xs font-bold shrink-0 w-6 ${h.last_status === 'up' ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
+            {h.last_status === 'up' ? '↑' : '↓'}
           </span>
           <span className="text-slate-300 text-xs truncate flex-1">{h.name}</span>
           <span className="text-slate-500 text-xs shrink-0 tabular-nums">{h.response_ms}ms</span>
@@ -184,7 +184,7 @@ function TVDashboard({ projectId, onProjectChange, profileName }: { projectId: s
   }, [])
 
   const healthEntries = health.data ?? []
-  const hasDown = healthEntries.some(h => h.last_status === 'DOWN')
+  const hasDown = healthEntries.some(h => h.last_status === 'down')
   const activeAlerts = (alerts.data ?? []).length
 
   const selectedProject = (projects.data ?? []).find(p => p.id === projectId)
