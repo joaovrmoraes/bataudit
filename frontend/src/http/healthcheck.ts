@@ -27,8 +27,9 @@ export interface MonitorResult {
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/v1/monitors`
 
-export async function listMonitors(projectId: string): Promise<Monitor[]> {
-  const res = await fetchWithAuth(`${BASE}?project_id=${encodeURIComponent(projectId)}`)
+export async function listMonitors(projectId?: string): Promise<Monitor[]> {
+  const url = projectId ? `${BASE}?project_id=${encodeURIComponent(projectId)}` : BASE
+  const res = await fetchWithAuth(url)
   if (!res.ok) throw new Error('Failed to fetch monitors')
   const json = await res.json()
   return json.data ?? []

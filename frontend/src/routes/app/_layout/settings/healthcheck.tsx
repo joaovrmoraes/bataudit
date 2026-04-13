@@ -272,15 +272,42 @@ export default function HealthcheckPage() {
   const [editing, setEditing] = React.useState<Monitor | null>(null)
 
   if (!selectedProjectId) {
+    const downMonitors = monitors.filter(m => m.last_status === 'down')
     return (
       <div className="flex flex-col gap-6 p-6 max-w-3xl">
         <div className="flex items-center gap-3">
           <Activity className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold text-foreground">Healthcheck Monitors</h1>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Healthcheck Monitors</h1>
+            <p className="text-xs text-muted-foreground">All projects — select a project to manage monitors.</p>
+          </div>
         </div>
-        <div className="rounded-lg border border-border/50 bg-card/60 px-6 py-10 text-center text-sm text-muted-foreground">
-          Select a project in the header to manage healthcheck monitors.
-        </div>
+        {isLoading ? (
+          <div className="text-center text-xs text-muted-foreground py-8">Loading…</div>
+        ) : downMonitors.length === 0 ? (
+          <Card className="border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+            All monitors are UP across all projects.
+          </Card>
+        ) : (
+          <Card className="border-[#f87171]/30 bg-card overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#f87171]/20">
+              <XCircle className="h-4 w-4 text-[#f87171]" />
+              <span className="text-sm font-semibold text-[#f87171]">{downMonitors.length} monitor{downMonitors.length !== 1 ? 's' : ''} down</span>
+            </div>
+            <div className="divide-y divide-border/50">
+              {downMonitors.map(m => (
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                  <StatusBadge status="down" />
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground truncate">{m.name}</span>
+                    <span className="text-xs text-muted-foreground font-mono truncate">{m.url}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{relativeTime(m.last_checked_at)}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     )
   }

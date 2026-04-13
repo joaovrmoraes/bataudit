@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
         'concepts/anomaly-detection',
         'concepts/data-tiering',
         'concepts/notifications',
+        'concepts/healthcheck',
       ],
     },
     {

@@ -9,6 +9,7 @@ import (
 
 type Repository interface {
 	ListByProject(projectID string) ([]Monitor, error)
+	ListAll() ([]Monitor, error)
 	ListAllEnabled() ([]Monitor, error)
 	GetByID(id string) (*Monitor, error)
 	CountByProject(projectID string) (int64, error)
@@ -32,6 +33,12 @@ func NewRepository(db *gorm.DB) Repository {
 func (r *repository) ListByProject(projectID string) ([]Monitor, error) {
 	var monitors []Monitor
 	err := r.db.Where("project_id = ?", projectID).Order("created_at ASC").Find(&monitors).Error
+	return monitors, err
+}
+
+func (r *repository) ListAll() ([]Monitor, error) {
+	var monitors []Monitor
+	err := r.db.Order("project_id ASC, created_at ASC").Find(&monitors).Error
 	return monitors, err
 }
 

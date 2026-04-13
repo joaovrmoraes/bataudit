@@ -8,11 +8,10 @@ import {
   updateMonitor,
 } from '@/http/healthcheck'
 
-export function useMonitors(projectId: string | undefined) {
+export function useMonitors(projectId?: string) {
   return useQuery({
-    queryKey: ['monitors', projectId],
-    queryFn: () => listMonitors(projectId!),
-    enabled: !!projectId,
+    queryKey: ['monitors', projectId ?? 'all'],
+    queryFn: () => listMonitors(projectId),
     staleTime: 30_000,
   })
 }

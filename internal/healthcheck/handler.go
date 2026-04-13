@@ -29,11 +29,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 func (h *Handler) List(c *gin.Context) {
 	projectID := c.Query("project_id")
+	var monitors []Monitor
+	var err error
 	if projectID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id required"})
-		return
+		monitors, err = h.repo.ListAll()
+	} else {
+		monitors, err = h.repo.ListByProject(projectID)
 	}
-	monitors, err := h.repo.ListByProject(projectID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
