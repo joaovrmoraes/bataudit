@@ -1,7 +1,7 @@
 import React from 'react'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
-import { XAxis, YAxis, ResponsiveContainer, AreaChart, Area, ReferenceLine, LabelList } from 'recharts'
+import { XAxis, YAxis, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts'
 import { ShieldAlert, HeartPulse, AlertTriangle, Activity, Wifi, WifiOff } from 'lucide-react'
 import {
   activate,
