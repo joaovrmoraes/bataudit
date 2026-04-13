@@ -335,7 +335,8 @@ func (h *Handler) SessionByID(c *gin.Context) {
 // @Router       /audit/stats [get]
 func (h *Handler) Stats(c *gin.Context) {
 	projectID := c.Query("project_id")
-	stats, err := h.service.GetStats(projectID)
+	environment := c.Query("environment")
+	stats, err := h.service.GetStats(projectID, environment)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve stats"})
 		return

@@ -1066,6 +1066,37 @@ jobs:
 
 ---
 
+## Fase 29 — Performance: Indexes + Query Optimization
+
+**Objetivo:** Tornar o dashboard responsivo mesmo com 1M+ eventos — sem cache, sem infraestrutura extra. Fix cirúrgico nas queries e na estrutura do banco.
+
+**Contexto:** Com volumes grandes, o carregamento inicial do dashboard é lento por dois motivos ortogonais: (1) a tabela `audits` não tem indexes nas colunas filtradas — cada query faz seq scan; (2) o `GetStats()` executa 5 queries separadas por chamada, incluindo `PERCENTILE_CONT(0.95)` que exige full scan. Cache não é a solução — BatAudit é audit log em tempo real, cache desatualizado quebra a proposta.
+
+### 29.1 Migration — indexes na tabela `audits` (PostgreSQL)
+
+- [ ] Criar migration `000009_add_performance_indexes.up.sql`
+- [ ] `CREATE INDEX CONCURRENTLY idx_audits_project_timestamp ON audits(project_id, timestamp DESC)` — cobre 99% dos filtros: todo query combina project + orderBy timestamp
+- [ ] `CREATE INDEX CONCURRENTLY idx_audits_project_status ON audits(project_id, status_code)` — stats de erros
+- [ ] `CREATE INDEX CONCURRENTLY idx_audits_project_service ON audits(project_id, service_name)` — breakdown por serviço
+- [ ] `CREATE INDEX CONCURRENTLY idx_audits_project_environment ON audits(project_id, environment)` — filtro de environment (Bug P7)
+- [ ] `CREATE INDEX CONCURRENTLY idx_audits_project_event_type ON audits(project_id, event_type)` — filtro de anomalias (`system.alert`)
+- [ ] Criar migration `000009_add_performance_indexes.down.sql` com os `DROP INDEX` correspondentes
+- [ ] Repetir os mesmos indexes nas migrations SQLite em `internal/db/migrations/sqlite/000009_*` (sem `CONCURRENTLY` — SQLite não suporta)
+
+### 29.2 Otimizar `GetStats()` no repository
+
+- [ ] Consolidar as 5 queries separadas em 1 query com CTEs (ou 2 no máximo)
+- [ ] Substituir `PERCENTILE_CONT(0.95)` por `PERCENTILE_DISC(0.95)` — discreto é mais rápido e suficiente para p95 de response time
+- [ ] Garantir que todas as queries de stats usam os indexes adicionados (checar com `EXPLAIN ANALYZE`)
+- [ ] Adicionar `LIMIT` nas subqueries de breakdown por serviço e método (top 20 já é suficiente para o dashboard)
+
+### 29.3 Otimizar carregamento do dashboard
+
+- [ ] Avaliar remover `useAuditHistory()` do carregamento inicial — o gráfico de histórico pode carregar lazy (só quando visível ou com `enabled: false` até o usuário rolar)
+- [ ] Avaliar remover `useOrphans()` do carregamento inicial — widget de orphans pode ter `staleTime` maior (5min) já que não é crítico
+
+---
+
 ## Bugfix Backlog
 
 ### 🚨 PRIORIDADE 1 — 🐳 Docker / Docker Compose
@@ -1093,6 +1124,14 @@ jobs:
 - [x] **Tutorial de produção** — `self-hosting/production.md` reescrito: setup completo com `.env`, VAPID keys, reverse proxy (Caddy + Nginx), Coolify, backups, upgrade e security checklist.
 - [x] **Tutorial de setup com PostgreSQL** — `self-hosting/postgresql.md` criado: quando usar, env vars, compose bundled, PostgreSQL externo, SSL, backups, performance tips.
 - [x] **Tutorial de setup com SQLite** — `self-hosting/sqlite.md` criado: quando usar, compose mínimo sem PostgreSQL, rodando sem Docker, migrations, backups, limitações. `cmd/tools/gen-vapid` criado para gerar VAPID keys. `configuration.md` atualizado com `SQLITE_PATH` e link correto para gen-vapid. Sidebars atualizado.
+
+### ~~🔴 PRIORIDADE 7 — 🔍 Environment filter não aplica no Stats endpoint~~ ✅ RESOLVIDO
+
+- [x] **`GetStats()` ignorava o filtro de environment** — handler `Stats()` agora lê `environment` query param e passa para `service.GetStats(projectID, environment)`. Repository `GetStats()` recebe ambos e aplica `WHERE environment = ?` em todas as subqueries (base closure + timeline). Timeline migrada para usar `base()` ao invés de query manual duplicada. Testes atualizados + `TestGetStats_ForwardsEnvironment` adicionado.
+
+### ~~🔴 PRIORIDADE 8 — 📦 SDK: `path_params` nunca capturado~~ ✅ FALSO POSITIVO
+
+- [x] **`path_params` já implementado** — Express (`express.ts:52`) e Fastify (`fastify.ts:58`) já capturam `req.params` / `request.params` corretamente. Os dados pareciam vazios no demo porque os seeds inserem direto no banco sem passar pelo SDK. Nenhuma correção necessária.
 
 ### ~~🟢 PRIORIDADE 6 — 🗄️ SQLite — Suporte alternativo ao PostgreSQL~~ ✅ RESOLVIDO
 

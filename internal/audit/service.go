@@ -30,8 +30,8 @@ func (service *Service) GetSessions(filters SessionFilters) ([]Session, error) {
 	return service.repo.GetSessions(filters)
 }
 
-func (service *Service) GetStats(projectID string) (*AuditStats, error) {
-	return service.repo.GetStats(projectID)
+func (service *Service) GetStats(projectID, environment string) (*AuditStats, error) {
+	return service.repo.GetStats(projectID, environment)
 }
 
 func (service *Service) GetOrphans(filters OrphanFilters) ([]AuditSummary, error) {

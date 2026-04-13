@@ -50,7 +50,7 @@ func (m *mockRepository) GetByID(id string) (*Audit, error) {
 	return nil, nil
 }
 
-func (m *mockRepository) GetStats(projectID string) (*AuditStats, error) {
+func (m *mockRepository) GetStats(projectID, environment string) (*AuditStats, error) {
 	if m.getStatsFn != nil {
 		return m.getStatsFn(projectID)
 	}
@@ -222,7 +222,7 @@ func TestGetStats_ReturnsRepoResult(t *testing.T) {
 	}
 	svc := newService(repo)
 
-	result, err := svc.GetStats("proj-1")
+	result, err := svc.GetStats("proj-1", "")
 	require.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
@@ -237,8 +237,26 @@ func TestGetStats_ForwardsProjectID(t *testing.T) {
 	}
 	svc := newService(repo)
 
-	svc.GetStats("my-project")
+	svc.GetStats("my-project", "")
 	assert.Equal(t, "my-project", capturedID)
+}
+
+func TestGetStats_ForwardsEnvironment(t *testing.T) {
+	var capturedEnv string
+	svc := &Service{repo: &envCaptureMock{capturedEnv: &capturedEnv}}
+
+	svc.GetStats("proj-1", "production")
+	assert.Equal(t, "production", capturedEnv)
+}
+
+type envCaptureMock struct {
+	*mockRepository
+	capturedEnv *string
+}
+
+func (m *envCaptureMock) GetStats(projectID, environment string) (*AuditStats, error) {
+	*m.capturedEnv = environment
+	return &AuditStats{}, nil
 }
 
 // --- GetSessions ---

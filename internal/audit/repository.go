@@ -30,7 +30,7 @@ type Repository interface {
 	List(limit, offset int, filters ListFilters) (ListResult, error)
 	Export(filters ListFilters, maxRows int) ([]AuditSummary, error)
 	GetByID(id string) (*Audit, error)
-	GetStats(projectID string) (*AuditStats, error)
+	GetStats(projectID, environment string) (*AuditStats, error)
 	GetSessions(filters SessionFilters) ([]Session, error)
 	GetSessionByID(sessionID string) (*SessionDetail, error)
 	GetOrphans(filters OrphanFilters) ([]AuditSummary, error)
@@ -289,7 +289,7 @@ func (r *repository) GetSessionByID(sessionID string) (*SessionDetail, error) {
 	}, nil
 }
 
-func (r *repository) GetStats(projectID string) (*AuditStats, error) {
+func (r *repository) GetStats(projectID, environment string) (*AuditStats, error) {
 	stats := &AuditStats{
 		ByService:     []ServiceBreakdown{},
 		ByStatusClass: map[string]int64{"2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0},
@@ -301,6 +301,9 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		q := r.db.Model(&Audit{})
 		if projectID != "" {
 			q = q.Where("project_id = ?", projectID)
+		}
+		if environment != "" {
+			q = q.Where("environment = ?", environment)
 		}
 		return q
 	}
@@ -390,12 +393,9 @@ func (r *repository) GetStats(projectID string) (*AuditStats, error) {
 		Count int64
 	}
 	var timelineRows []timelineRow
-	tq := r.db.Model(&Audit{}).
+	tq := base().
 		Select(`TO_CHAR(DATE_TRUNC('hour', timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS hour, COUNT(*) AS count`).
 		Where("timestamp >= NOW() - INTERVAL '24 hours'")
-	if projectID != "" {
-		tq = tq.Where("project_id = ?", projectID)
-	}
 	tq.Group("hour").Order("hour ASC").Scan(&timelineRows)
 	for _, row := range timelineRows {
 		stats.Timeline = append(stats.Timeline, TimelinePoint(row))
