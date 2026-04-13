@@ -120,6 +120,23 @@ services:
     networks:
       - bataudit-demo
 
+  # ── Daily reset (truncates data tables and re-seeds at 00:00 BRT / 03:00 UTC) ─
+
+  demo-reset:
+    build:
+      context: .
+      dockerfile: cmd/tools/demo-reset/Dockerfile
+    container_name: bat_demo_reset
+    env_file: .env.demo
+    environment:
+      - DEMO_API_KEY=${DEMO_API_KEY:-bat_demo00000000000000000000000000000000000000000000000000000000000000}
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - bataudit-demo
+
   # ── Streamer (long-running, continuously feeds live events + anomaly bursts) ─
 
   streamer:
