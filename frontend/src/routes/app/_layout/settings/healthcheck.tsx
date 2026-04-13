@@ -220,8 +220,8 @@ function MonitorForm({
         await createMutation.mutateAsync({ project_id: projectId, ...form })
       }
       onClose()
-    } catch (err: any) {
-      setError(err.message ?? 'Error')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
     }
   }
 

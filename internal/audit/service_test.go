@@ -91,6 +91,10 @@ func (m *mockRepository) GetInsights(filters InsightFilters) (*InsightsResult, e
 	}, nil
 }
 
+func (m *mockRepository) GetAffectedUsers(projectID, path, method, start, end string, limit int) ([]AffectedUser, error) {
+	return []AffectedUser{}, nil
+}
+
 // --- Helpers ---
 
 func newService(repo Repository) *Service {
