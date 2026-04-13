@@ -4,7 +4,7 @@ import { getAuditStats } from '@/http/audit/stats'
 import { getAuditDetail } from '@/http/audit/details'
 import { getSessions, getSessionByID, type SessionFilters } from '@/http/audit/sessions'
 import { getOrphans, type OrphanFilters } from '@/http/audit/orphans'
-import { getInsights } from '@/http/audit/insights'
+import { getInsights, getAffectedUsers } from '@/http/audit/insights'
 import type { Session } from '@/http/audit/sessions'
 
 export function useAuditList(page: number, limit: number, projectId?: string | null, filters?: Record<string, string | undefined>) {
@@ -84,6 +84,20 @@ export function useAnomalyRelatedEvents(params: Parameters<typeof ListAudit>[0],
     queryKey: ['anomaly-related', params],
     queryFn: () => ListAudit(params),
     enabled: enabled && !!params?.service_name,
+  })
+}
+
+export function useAffectedUsers(
+  projectId?: string | null,
+  path?: string | null,
+  method?: string | null,
+  start?: string,
+  end?: string,
+) {
+  return useQuery({
+    queryKey: ['affected-users', projectId, path, method, start, end],
+    queryFn: () => getAffectedUsers(projectId!, path!, method ?? undefined, start, end),
+    enabled: !!projectId && !!path,
   })
 }
 

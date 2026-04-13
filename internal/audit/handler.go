@@ -66,6 +66,7 @@ func (h *Handler) RegisterReadRoutes(router *gin.RouterGroup) {
 	router.GET("/sessions/:session_id", h.SessionByID)
 	router.GET("/orphans", h.Orphans)
 	router.GET("/insights", h.Insights)
+	router.GET("/affected-users", h.AffectedUsers)
 	router.GET("/:id", h.Details)
 }
 
@@ -532,4 +533,30 @@ func (h *Handler) Insights(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) AffectedUsers(c *gin.Context) {
+	projectID := c.Query("project_id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id required"})
+		return
+	}
+	path := c.Query("path")
+	if path == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "path required"})
+		return
+	}
+	users, err := h.service.GetAffectedUsers(
+		projectID,
+		path,
+		c.Query("method"),
+		c.Query("start"),
+		c.Query("end"),
+		50,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve affected users"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }

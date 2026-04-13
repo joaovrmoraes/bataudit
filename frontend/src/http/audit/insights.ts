@@ -43,3 +43,28 @@ export async function getInsights(projectId?: string | null, period = '7d'): Pro
   if (!res.ok) throw new Error('Failed to fetch insights')
   return res.json()
 }
+
+export interface AffectedUser {
+  identifier: string
+  user_email: string
+  user_name: string
+  error_count: number
+  last_seen: string
+}
+
+export async function getAffectedUsers(
+  projectId: string,
+  path: string,
+  method?: string,
+  start?: string,
+  end?: string,
+): Promise<{ data: AffectedUser[] }> {
+  const search = new URLSearchParams({ project_id: projectId, path })
+  if (method) search.set('method', method)
+  if (start) search.set('start', start)
+  if (end) search.set('end', end)
+
+  const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/affected-users?${search.toString()}`)
+  if (!res.ok) throw new Error('Failed to fetch affected users')
+  return res.json()
+}

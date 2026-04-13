@@ -16,6 +16,7 @@ type Event struct {
 	Timestamp   time.Time
 	StatusCode  int
 	Method      string
+	Path        string
 	Identifier  string
 }
 
@@ -90,16 +91,22 @@ type Detector struct {
 	sink     AlertSink
 
 	cooldownDur time.Duration // minimum interval between same-type alerts per project
+
+	// Route-level error rate detection (per project:path:method).
+	routeWindows  map[string]*window
+	routeCooldown map[string]time.Time // 10-min cooldown per route
 }
 
 // NewDetector creates a Detector backed by the given repository and alert sink.
 func NewDetector(repo Repository, sink AlertSink) *Detector {
 	return &Detector{
-		windows:     make(map[string]*window),
-		cooldown:    make(map[string]time.Time),
-		repo:        repo,
-		sink:        sink,
-		cooldownDur: 5 * time.Minute,
+		windows:       make(map[string]*window),
+		cooldown:      make(map[string]time.Time),
+		repo:          repo,
+		sink:          sink,
+		cooldownDur:   5 * time.Minute,
+		routeWindows:  make(map[string]*window),
+		routeCooldown: make(map[string]time.Time),
 	}
 }
 
@@ -143,6 +150,11 @@ func (d *Detector) ProcessEvent(ev Event) {
 			continue
 		}
 		d.evaluate(ev, rule, w)
+	}
+
+	// Route-level error rate detection runs outside the per-project rules.
+	if ev.Path != "" {
+		d.checkErrorRateByRoute(ev)
 	}
 }
 
@@ -364,6 +376,78 @@ func (d *Detector) fire(ev Event, rt RuleType, details map[string]any) {
 
 	if err := d.sink.CreateAlert(ev.ProjectID, ev.ServiceName, ev.Environment, rt, details); err != nil {
 		slog.Error("anomaly: failed to persist alert", "error", err)
+	}
+}
+
+// routeWindowKey builds the map key for a (project, path, method) triple.
+func routeWindowKey(projectID, path, method string) string {
+	return projectID + "::" + method + "::" + path
+}
+
+// checkErrorRateByRoute detects when a specific (path, method) has a high 4xx/5xx rate.
+// Uses a fixed 5-minute window, 10% threshold, minimum 10 requests, 10-minute cooldown per route.
+func (d *Detector) checkErrorRateByRoute(ev Event) {
+	const (
+		windowDur    = 5 * time.Minute
+		minRequests  = 10
+		threshold    = 10.0 // percent
+		routeCooldown = 10 * time.Minute
+	)
+
+	key := routeWindowKey(ev.ProjectID, ev.Path, ev.Method)
+
+	d.mu.Lock()
+	w, ok := d.routeWindows[key]
+	if !ok {
+		w = &window{}
+		d.routeWindows[key] = w
+	}
+	d.mu.Unlock()
+
+	w.add(entry{Timestamp: ev.Timestamp, StatusCode: ev.StatusCode, Method: ev.Method})
+
+	entries := w.since(time.Now().Add(-windowDur))
+	if len(entries) < minRequests {
+		return
+	}
+
+	errors := 0
+	for _, e := range entries {
+		if e.StatusCode >= 400 {
+			errors++
+		}
+	}
+
+	rate := float64(errors) / float64(len(entries)) * 100
+	if rate < threshold {
+		return
+	}
+
+	// Route-level cooldown — independent of project-wide cooldown.
+	d.mu.Lock()
+	if last, ok := d.routeCooldown[key]; ok && time.Since(last) < routeCooldown {
+		d.mu.Unlock()
+		return
+	}
+	d.routeCooldown[key] = time.Now()
+	d.mu.Unlock()
+
+	slog.Warn("Route error rate anomaly detected",
+		"project_id", ev.ProjectID,
+		"path", ev.Path,
+		"method", ev.Method,
+		"error_rate", math.Round(rate*100)/100,
+	)
+
+	if err := d.sink.CreateAlert(ev.ProjectID, ev.ServiceName, ev.Environment, RuleErrorRateByRoute, map[string]any{
+		"path":            ev.Path,
+		"method":          ev.Method,
+		"error_rate":      math.Round(rate*100) / 100,
+		"error_count":     errors,
+		"total_requests":  len(entries),
+		"window_seconds":  int(windowDur.Seconds()),
+	}); err != nil {
+		slog.Error("anomaly: failed to persist route error rate alert", "error", err)
 	}
 }
 

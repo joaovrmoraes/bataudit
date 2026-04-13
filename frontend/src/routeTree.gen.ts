@@ -16,11 +16,11 @@ import { Route as AppLayoutRouteImport } from './routes/app/_layout'
 import { Route as AppLayoutIndexRouteImport } from './routes/app/_layout/index'
 import { Route as AppLayoutSessionsRouteImport } from './routes/app/_layout/sessions'
 import { Route as AppLayoutMembersRouteImport } from './routes/app/_layout/members'
-import { Route as AppLayoutAnomaliesRouteImport } from './routes/app/_layout/anomalies'
 import { Route as AppLayoutInsightsRouteImport } from './routes/app/_layout/insights'
-import { Route as AppLayoutSettingsHealthcheckRouteImport } from './routes/app/_layout/settings/healthcheck'
+import { Route as AppLayoutAnomaliesRouteImport } from './routes/app/_layout/anomalies'
 import { Route as AppLayoutSettingsRetentionRouteImport } from './routes/app/_layout/settings/retention'
 import { Route as AppLayoutSettingsNotificationsRouteImport } from './routes/app/_layout/settings/notifications'
+import { Route as AppLayoutSettingsHealthcheckRouteImport } from './routes/app/_layout/settings/healthcheck'
 import { Route as AppLayoutSettingsApiKeysRouteImport } from './routes/app/_layout/settings/api-keys'
 
 const AppRouteImport = createFileRoute('/app')()
@@ -54,22 +54,16 @@ const AppLayoutMembersRoute = AppLayoutMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => AppLayoutRoute,
 } as any)
-const AppLayoutAnomaliesRoute = AppLayoutAnomaliesRouteImport.update({
-  id: '/anomalies',
-  path: '/anomalies',
-  getParentRoute: () => AppLayoutRoute,
-} as any)
 const AppLayoutInsightsRoute = AppLayoutInsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
   getParentRoute: () => AppLayoutRoute,
 } as any)
-const AppLayoutSettingsHealthcheckRoute =
-  AppLayoutSettingsHealthcheckRouteImport.update({
-    id: '/settings/healthcheck',
-    path: '/settings/healthcheck',
-    getParentRoute: () => AppLayoutRoute,
-  } as any)
+const AppLayoutAnomaliesRoute = AppLayoutAnomaliesRouteImport.update({
+  id: '/anomalies',
+  path: '/anomalies',
+  getParentRoute: () => AppLayoutRoute,
+} as any)
 const AppLayoutSettingsRetentionRoute =
   AppLayoutSettingsRetentionRouteImport.update({
     id: '/settings/retention',
@@ -80,6 +74,12 @@ const AppLayoutSettingsNotificationsRoute =
   AppLayoutSettingsNotificationsRouteImport.update({
     id: '/settings/notifications',
     path: '/settings/notifications',
+    getParentRoute: () => AppLayoutRoute,
+  } as any)
+const AppLayoutSettingsHealthcheckRoute =
+  AppLayoutSettingsHealthcheckRouteImport.update({
+    id: '/settings/healthcheck',
+    path: '/settings/healthcheck',
     getParentRoute: () => AppLayoutRoute,
   } as any)
 const AppLayoutSettingsApiKeysRoute =
@@ -97,8 +97,8 @@ export interface FileRoutesByFullPath {
   '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
   '/app/': typeof AppLayoutIndexRoute
-  '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
+  '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
 }
@@ -109,8 +109,8 @@ export interface FileRoutesByTo {
   '/app/insights': typeof AppLayoutInsightsRoute
   '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
-  '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
+  '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
 }
@@ -124,8 +124,8 @@ export interface FileRoutesById {
   '/app/_layout/members': typeof AppLayoutMembersRoute
   '/app/_layout/sessions': typeof AppLayoutSessionsRoute
   '/app/_layout/': typeof AppLayoutIndexRoute
-  '/app/_layout/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/_layout/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
+  '/app/_layout/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/_layout/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/_layout/settings/retention': typeof AppLayoutSettingsRetentionRoute
 }
@@ -139,8 +139,8 @@ export interface FileRouteTypes {
     | '/app/members'
     | '/app/sessions'
     | '/app/'
-    | '/app/settings/healthcheck'
     | '/app/settings/api-keys'
+    | '/app/settings/healthcheck'
     | '/app/settings/notifications'
     | '/app/settings/retention'
   fileRoutesByTo: FileRoutesByTo
@@ -151,8 +151,8 @@ export interface FileRouteTypes {
     | '/app/insights'
     | '/app/members'
     | '/app/sessions'
-    | '/app/settings/healthcheck'
     | '/app/settings/api-keys'
+    | '/app/settings/healthcheck'
     | '/app/settings/notifications'
     | '/app/settings/retention'
   id:
@@ -165,8 +165,8 @@ export interface FileRouteTypes {
     | '/app/_layout/members'
     | '/app/_layout/sessions'
     | '/app/_layout/'
-    | '/app/_layout/settings/healthcheck'
     | '/app/_layout/settings/api-keys'
+    | '/app/_layout/settings/healthcheck'
     | '/app/_layout/settings/notifications'
     | '/app/_layout/settings/retention'
   fileRoutesById: FileRoutesById
@@ -220,13 +220,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLayoutMembersRouteImport
       parentRoute: typeof AppLayoutRoute
     }
-    '/app/_layout/anomalies': {
-      id: '/app/_layout/anomalies'
-      path: '/anomalies'
-      fullPath: '/app/anomalies'
-      preLoaderRoute: typeof AppLayoutAnomaliesRouteImport
-      parentRoute: typeof AppLayoutRoute
-    }
     '/app/_layout/insights': {
       id: '/app/_layout/insights'
       path: '/insights'
@@ -234,11 +227,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLayoutInsightsRouteImport
       parentRoute: typeof AppLayoutRoute
     }
-    '/app/_layout/settings/healthcheck': {
-      id: '/app/_layout/settings/healthcheck'
-      path: '/settings/healthcheck'
-      fullPath: '/app/settings/healthcheck'
-      preLoaderRoute: typeof AppLayoutSettingsHealthcheckRouteImport
+    '/app/_layout/anomalies': {
+      id: '/app/_layout/anomalies'
+      path: '/anomalies'
+      fullPath: '/app/anomalies'
+      preLoaderRoute: typeof AppLayoutAnomaliesRouteImport
       parentRoute: typeof AppLayoutRoute
     }
     '/app/_layout/settings/retention': {
@@ -253,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/notifications'
       fullPath: '/app/settings/notifications'
       preLoaderRoute: typeof AppLayoutSettingsNotificationsRouteImport
+      parentRoute: typeof AppLayoutRoute
+    }
+    '/app/_layout/settings/healthcheck': {
+      id: '/app/_layout/settings/healthcheck'
+      path: '/settings/healthcheck'
+      fullPath: '/app/settings/healthcheck'
+      preLoaderRoute: typeof AppLayoutSettingsHealthcheckRouteImport
       parentRoute: typeof AppLayoutRoute
     }
     '/app/_layout/settings/api-keys': {
@@ -271,8 +271,8 @@ interface AppLayoutRouteChildren {
   AppLayoutMembersRoute: typeof AppLayoutMembersRoute
   AppLayoutSessionsRoute: typeof AppLayoutSessionsRoute
   AppLayoutIndexRoute: typeof AppLayoutIndexRoute
-  AppLayoutSettingsHealthcheckRoute: typeof AppLayoutSettingsHealthcheckRoute
   AppLayoutSettingsApiKeysRoute: typeof AppLayoutSettingsApiKeysRoute
+  AppLayoutSettingsHealthcheckRoute: typeof AppLayoutSettingsHealthcheckRoute
   AppLayoutSettingsNotificationsRoute: typeof AppLayoutSettingsNotificationsRoute
   AppLayoutSettingsRetentionRoute: typeof AppLayoutSettingsRetentionRoute
 }
@@ -283,8 +283,8 @@ const AppLayoutRouteChildren: AppLayoutRouteChildren = {
   AppLayoutMembersRoute: AppLayoutMembersRoute,
   AppLayoutSessionsRoute: AppLayoutSessionsRoute,
   AppLayoutIndexRoute: AppLayoutIndexRoute,
-  AppLayoutSettingsHealthcheckRoute: AppLayoutSettingsHealthcheckRoute,
   AppLayoutSettingsApiKeysRoute: AppLayoutSettingsApiKeysRoute,
+  AppLayoutSettingsHealthcheckRoute: AppLayoutSettingsHealthcheckRoute,
   AppLayoutSettingsNotificationsRoute: AppLayoutSettingsNotificationsRoute,
   AppLayoutSettingsRetentionRoute: AppLayoutSettingsRetentionRoute,
 }

@@ -60,13 +60,13 @@ function EmptyRow() {
 }
 
 export default function InsightsPage() {
-  const { selectedProject } = useProject()
+  const { selectedProjectId } = useProject()
   const [period, setPeriod] = React.useState('7d')
-  const { data, isLoading } = useInsights(selectedProject, period)
+  const { data, isLoading } = useInsights(selectedProjectId, period)
   const navigate = useNavigate()
 
   function goToEvents(filters: Record<string, string>) {
-    navigate({ to: '/app/', search: (prev) => ({ ...prev, ...filters, page: 1 }), hash: 'events' })
+    navigate({ to: '/app', search: (prev) => ({ ...prev, ...filters, page: 1 }), hash: 'events' })
   }
 
   return (

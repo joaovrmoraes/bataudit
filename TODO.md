@@ -778,58 +778,48 @@ Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5.1 → Fase 6 → Fase 5.2 →
 
 ---
 
-## Fase 21 — Healthcheck Monitor
+## ~~Fase 21 — Healthcheck Monitor~~ ✅ CONCLUÍDO
 
 **Objetivo:** Configurar URLs de healthcheck por projeto e ter o BatAudit pingando periodicamente — fechando o loop entre auditoria ("o que aconteceu") e uptime ("o app ainda está de pé").
 
-**Contexto:** Times pequenos usam Betterstack ou UptimeRobot separado do audit log. O BatAudit já tem Worker, notificações e eventos `system.*` — healthcheck se encaixa naturalmente sem nova infraestrutura.
-
 ### 21.1 Modelo de dados
 
-- [ ] Criar tabela `healthcheck_monitors` (id, project_id, name, url, interval_seconds, timeout_seconds, expected_status, enabled, last_status `up|down|unknown`, last_checked_at, created_at, updated_at)
-- [ ] Criar tabela `healthcheck_results` (id, monitor_id, status `up|down`, status_code, response_ms, error, checked_at)
-- [ ] Criar migration para as tabelas acima
-- [ ] Limite: máximo 10 monitors por projeto (validar no handler)
+- [x] Criar tabela `healthcheck_monitors` (id, project_id, name, url, interval_seconds, timeout_seconds, expected_status, enabled, last_status, last_checked_at, created_at, updated_at)
+- [x] Criar tabela `healthcheck_results` (id, monitor_id, status, status_code, response_ms, error, checked_at)
+- [x] Migration `000009` para postgres + sqlite
+- [x] Limite: máximo 10 monitors por projeto (validado no handler)
 
 ### 21.2 Backend — endpoints (Reader, protegidos por JWT)
 
-- [ ] `POST /v1/monitors` — criar monitor (name, url, interval_seconds, timeout_seconds, expected_status)
-- [ ] `GET /v1/monitors` — listar monitors do projeto com `last_status` e `last_checked_at`
-- [ ] `PUT /v1/monitors/:id` — editar monitor
-- [ ] `DELETE /v1/monitors/:id` — remover monitor
-- [ ] `GET /v1/monitors/:id/history` — últimos N resultados do monitor (paginado)
+- [x] `POST /v1/monitors` — criar monitor
+- [x] `GET /v1/monitors` — listar monitors do projeto
+- [x] `PUT /v1/monitors/:id` — editar monitor
+- [x] `DELETE /v1/monitors/:id` — remover monitor
+- [x] `GET /v1/monitors/:id/history` — últimos N resultados
+- [x] `POST /v1/monitors/:id/test` — check imediato
 
 ### 21.3 Worker — goroutine de polling
 
-- [ ] Criar `internal/healthcheck/monitor.go` — lógica de polling por monitor
-- [ ] Goroutine `runHealthcheckMonitors` iniciada no `cmd/api/worker/main.go`
-- [ ] Ao iniciar: carregar todos os monitors ativos do banco
-- [ ] Recarregar configs a cada 60s (novos monitors adicionados via dashboard entram automaticamente)
-- [ ] Para cada monitor: `time.Ticker` com o `interval_seconds` configurado
-- [ ] A cada tick: fazer `GET` na URL com timeout configurado
-- [ ] Avaliar: status code == expected_status → UP, caso contrário → DOWN
-- [ ] Atualizar `last_status` e `last_checked_at` na tabela `healthcheck_monitors`
-- [ ] Inserir resultado em `healthcheck_results`
-- [ ] Manter apenas os últimos 200 resultados por monitor (limpar os mais antigos)
+- [x] `internal/healthcheck/monitor.go` — Poller com goroutine por monitor
+- [x] Recarrega monitors a cada 60s
+- [x] `time.Ticker` por monitor com `interval_seconds`
+- [x] Avalia status code vs `expected_status` → UP/DOWN
+- [x] Atualiza `last_status` + `last_checked_at`
+- [x] Insere em `healthcheck_results`, mantém últimos 200
 
 ### 21.4 Eventos e notificações
 
-- [ ] Na transição UP→DOWN: gravar evento `system.healthcheck.down` no audit log (campos: `url`, `status_code`, `response_ms`, `error`, `expected_status`)
-- [ ] Na transição DOWN→UP: gravar evento `system.healthcheck.up` (campos: `url`, `status_code`, `response_ms`, `downtime_seconds`)
-- [ ] Só notifica na transição de estado — não a cada check falho (sem spam)
-- [ ] Disparar notificação via sistema existente (Web Push + Webhook) igual às anomalias
-- [ ] Payload da notificação: `"[NomeDoMonitor] está unhealthy — /health retornou 503 (esperado 200)"`
-- [ ] Recovery notification opcional (configurável por monitor)
+- [x] Transição UP→DOWN: grava `system.healthcheck.down`
+- [x] Transição DOWN→UP: grava `system.healthcheck.up`
+- [x] Notifica só na transição via Web Push + Webhook
 
 ### 21.5 Dashboard
 
-- [ ] Tabela de breakdown por serviço (Fase 6.3) ganha coluna `Health` — badge colorido: 🟢 UP / 🔴 DOWN / ⚪ sem monitor
-- [ ] Badge usa `last_status` do monitor associado ao `service_name`
-- [ ] Página de configurações → nova seção "Healthcheck Monitors"
-  - [ ] Listagem de monitors com status atual, URL, intervalo, último check
-  - [ ] Formulário de criação/edição
-  - [ ] Botão "Testar agora" — dispara um check imediato e exibe o resultado
-  - [ ] Toggle ativar/desativar por monitor
+- [x] Coluna `Health` na tabela de breakdown com badge UP/DOWN/—
+- [x] Banner de alerta na home quando algum monitor está DOWN
+- [x] Página `/settings/healthcheck` com listagem, form, toggle, test-now, histórico expansível
+- [x] Guard "select a project" quando All Projects selecionado
+- [x] Tooltips descritivos em todos os botões de ação
 
 ---
 

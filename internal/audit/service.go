@@ -42,6 +42,10 @@ func (service *Service) GetInsights(filters InsightFilters) (*InsightsResult, er
 	return service.repo.GetInsights(filters)
 }
 
+func (service *Service) GetAffectedUsers(projectID, path, method, start, end string, limit int) ([]AffectedUser, error) {
+	return service.repo.GetAffectedUsers(projectID, path, method, start, end, limit)
+}
+
 func (service *Service) GetAuditByID(id string) (*Audit, error) {
 	if id == "" {
 		return nil, ErrInvalidIdentifier

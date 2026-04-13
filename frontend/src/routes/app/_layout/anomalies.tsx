@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { AlertTriangle, ShieldAlert, X, Clock, Activity, User } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useAnomalyAlerts, useAuditDetail, useAnomalyRelatedEvents } from '@/queries/audit'
+import { useAnomalyAlerts, useAuditDetail, useAnomalyRelatedEvents, useAffectedUsers } from '@/queries/audit'
 import { useProject } from '@/lib/project-context'
 import { useEnvironment } from '@/lib/environment-context'
 
@@ -16,7 +16,8 @@ const RULE_META: Record<string, { label: string; color: string; description: str
   error_rate:     { label: 'Error Rate',     color: 'bg-[#f87171]/20 text-[#f87171] border-[#f87171]/30',   description: '4xx/5xx rate exceeded threshold' },
   brute_force:    { label: 'Brute Force',    color: 'bg-[#fb923c]/20 text-[#fb923c] border-[#fb923c]/30',   description: 'Repeated auth failures from same identifier' },
   silent_service: { label: 'Silent Service', color: 'bg-[#fbbf24]/20 text-[#fbbf24] border-[#fbbf24]/30',   description: 'No events received for threshold minutes' },
-  mass_delete:    { label: 'Mass Delete',    color: 'bg-[#f87171]/20 text-[#f87171] border-[#f87171]/30',   description: 'High volume of DELETE requests in short window' },
+  mass_delete:          { label: 'Mass Delete',         color: 'bg-[#f87171]/20 text-[#f87171] border-[#f87171]/30',   description: 'High volume of DELETE requests in short window' },
+  error_rate_by_route:  { label: 'Error Rate by Route', color: 'bg-[#f472b6]/20 text-[#f472b6] border-[#f472b6]/30',   description: 'High error rate detected on a specific route' },
 }
 
 type AlertSummary = {
@@ -147,6 +148,9 @@ function buildRelatedFilters(
     ...(alert.path === 'brute_force' && details?.identifier
       ? { identifier: String(details.identifier) }
       : {}),
+    ...(alert.path === 'error_rate_by_route' && details?.path
+      ? { path: String(details.path), ...(details.method ? { method: String(details.method) } : {}) }
+      : {}),
   }
 }
 
@@ -181,6 +185,46 @@ function RelatedEvents({ alert, details, projectId }: {
         </div>
       ))}
       <p className="text-xs text-muted-foreground/50 pt-1">{events.length} event{events.length !== 1 ? 's' : ''} in window</p>
+    </div>
+  )
+}
+
+// ─── Affected Users ────────────────────────────────────────────────────────
+
+function AffectedUsersSection({ details, projectId }: {
+  alert: AlertSummary
+  details: Record<string, unknown> | null
+  projectId?: string | null
+}) {
+  const path = details?.path ? String(details.path) : null
+  const method = details?.method ? String(details.method) : null
+  const { data, isLoading } = useAffectedUsers(projectId, path, method)
+  const users = data?.data ?? []
+
+  if (!path) return null
+
+  return (
+    <div className="px-6 py-5 border-t border-border/30">
+      <div className="flex items-center gap-2 mb-4">
+        <User className="h-3.5 w-3.5 text-muted-foreground" />
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Affected Users</h3>
+        <span className="text-xs text-muted-foreground font-mono ml-auto">{method && <span className="text-[#f472b6]">{method} </span>}{path}</span>
+      </div>
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      ) : users.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No affected users found.</p>
+      ) : (
+        <div className="space-y-1">
+          {users.map(u => (
+            <div key={u.identifier} className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary/30 text-xs font-mono hover:bg-secondary/50 transition-colors">
+              <span className="text-foreground flex-1 truncate">{u.user_email || u.user_name || u.identifier}</span>
+              <span className="text-[#f87171] shrink-0">{u.error_count} err</span>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground/50 pt-1">{users.length} user{users.length !== 1 ? 's' : ''} affected</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -290,6 +334,11 @@ function AlertDrawer({ alert, projectId, onClose }: {
                   <RelatedEvents alert={alert} details={details} projectId={projectId} />
                 )}
               </div>
+
+              {/* Affected users for error_rate_by_route */}
+              {alert.path === 'error_rate_by_route' && (
+                <AffectedUsersSection alert={alert} details={details} projectId={projectId} />
+              )}
 
               {/* Footer: identifier hint for brute force */}
               {!!details?.identifier && alert.path === 'brute_force' && (

@@ -36,6 +36,7 @@ type Repository interface {
 	GetSessionByID(sessionID string) (*SessionDetail, error)
 	GetOrphans(filters OrphanFilters) ([]AuditSummary, error)
 	GetInsights(filters InsightFilters) (*InsightsResult, error)
+	GetAffectedUsers(projectID, path, method, start, end string, limit int) ([]AffectedUser, error)
 }
 
 type repository struct {
@@ -532,4 +533,30 @@ func (r *repository) GetInsights(filters InsightFilters) (*InsightsResult, error
 	}
 
 	return result, nil
+}
+
+func (r *repository) GetAffectedUsers(projectID, path, method, start, end string, limit int) ([]AffectedUser, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	q := r.db.Model(&Audit{}).
+		Select(`identifier, user_email, user_name, COUNT(*) FILTER (WHERE status_code >= 400) AS error_count, MAX(timestamp) AS last_seen`).
+		Where("project_id = ? AND path = ? AND status_code >= 400", projectID, path)
+
+	if method != "" {
+		q = q.Where("method = ?", method)
+	}
+	if start != "" {
+		q = q.Where("timestamp >= ?", start)
+	}
+	if end != "" {
+		q = q.Where("timestamp <= ?", end)
+	}
+
+	var users []AffectedUser
+	err := q.Group("identifier, user_email, user_name").
+		Order("error_count DESC").
+		Limit(limit).
+		Scan(&users).Error
+	return users, err
 }

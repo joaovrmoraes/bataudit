@@ -6,11 +6,12 @@ import "time"
 type RuleType string
 
 const (
-	RuleVolumeSpike   RuleType = "volume_spike"   // Events/min spike vs hourly average
-	RuleErrorRate     RuleType = "error_rate"      // 4xx+5xx rate exceeds threshold%
-	RuleBruteForce    RuleType = "brute_force"     // Same identifier with N failed auth attempts
-	RuleSilentService RuleType = "silent_service"  // No events for longer than threshold minutes
-	RuleMassDelete    RuleType = "mass_delete"     // More than N DELETE requests in window
+	RuleVolumeSpike      RuleType = "volume_spike"        // Events/min spike vs hourly average
+	RuleErrorRate        RuleType = "error_rate"           // 4xx+5xx rate exceeds threshold%
+	RuleBruteForce       RuleType = "brute_force"          // Same identifier with N failed auth attempts
+	RuleSilentService    RuleType = "silent_service"       // No events for longer than threshold minutes
+	RuleMassDelete       RuleType = "mass_delete"          // More than N DELETE requests in window
+	RuleErrorRateByRoute RuleType = "error_rate_by_route"  // 4xx+5xx rate per (path, method) exceeds threshold%
 )
 
 // AnomalyRule is a per-project detection rule stored in the database.

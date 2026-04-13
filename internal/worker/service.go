@@ -199,6 +199,7 @@ func (s *Service) processWithRetry(id int, auditEvent audit.Audit) bool {
 					Timestamp:   auditEvent.Timestamp,
 					StatusCode:  auditEvent.StatusCode,
 					Method:      string(auditEvent.Method),
+					Path:        auditEvent.Path,
 					Identifier:  auditEvent.Identifier,
 				})
 			}

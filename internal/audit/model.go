@@ -181,6 +181,14 @@ type InsightsResult struct {
 	TopSlowRoutes  []TopSlowRoute  `json:"top_slow_routes"`
 }
 
+type AffectedUser struct {
+	Identifier string    `json:"identifier"`
+	UserEmail  string    `json:"user_email"`
+	UserName   string    `json:"user_name"`
+	ErrorCount int64     `json:"error_count"`
+	LastSeen   time.Time `json:"last_seen"`
+}
+
 type AuditSummary struct {
 	ID           string     `json:"id"`
 	EventType    string     `json:"event_type"`
