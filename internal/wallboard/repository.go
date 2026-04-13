@@ -207,13 +207,7 @@ func (r *repository) GetHealth(projectID string) ([]HealthEntry, error) {
 	r.db.Raw(healthQuery, healthArgs...).Scan(&rows)
 
 	for _, row := range rows {
-		entries = append(entries, HealthEntry{
-			Name:        row.Name,
-			URL:         row.URL,
-			LastStatus:  row.LastStatus,
-			ResponseMs:  row.ResponseMs,
-			LastChecked: row.LastChecked,
-		})
+		entries = append(entries, HealthEntry(row))
 	}
 	_ = q // suppress unused warning
 	return entries, nil

@@ -288,9 +288,7 @@ function TVDashboard({ projectId, onProjectChange, profileName }: { projectId: s
                       <XAxis dataKey="bucket" hide />
                       <YAxis hide domain={[0, maxVal > 0 ? maxVal * 1.3 : 10]} />
                       {avgVal > 0 && (
-                        <ReferenceLine y={avgVal} stroke="#475569" strokeDasharray="3 3">
-                          <LabelList value={`avg ${avgVal}`} position="insideTopRight" style={{ fill: '#475569', fontSize: 9, fontFamily: 'monospace' }} />
-                        </ReferenceLine>
+                        <ReferenceLine y={avgVal} stroke="#475569" strokeDasharray="3 3" label={{ value: `avg ${avgVal}`, position: 'insideTopRight', style: { fill: '#475569', fontSize: 9, fontFamily: 'monospace' } }} />
                       )}
                       <Area
                         type="monotone"

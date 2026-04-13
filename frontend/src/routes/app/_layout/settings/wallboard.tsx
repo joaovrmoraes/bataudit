@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useProject } from '@/lib/project-context'
-import { listWbTokens, generateWbCode, revokeWbCode, WbTokenItem } from '@/http/wallboard'
+import { listWbTokens, generateWbCode, revokeWbCode, type WbTokenItem } from '@/http/wallboard'
 
 export const Route = createFileRoute('/app/_layout/settings/wallboard')({
   component: WallboardSettingsPage,
