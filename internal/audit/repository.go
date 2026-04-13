@@ -357,10 +357,6 @@ func (r *repository) GetStats(projectID, environment string) (*AuditStats, error
 	}
 	var rows []cteRow
 
-	cteArgs := append(args, args...) // service + status reuse same WHERE
-	cteArgs = append(cteArgs, args...)
-	cteArgs = append(cteArgs, args...)
-
 	r.db.Raw(`
 		WITH f AS (SELECT * FROM audits WHERE `+where+`)
 		SELECT 'service' AS kind,
