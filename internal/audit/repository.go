@@ -303,18 +303,19 @@ func (r *repository) GetStats(projectID, environment string) (*AuditStats, error
 		Timeline:      []TimelinePoint{},
 	}
 
-	base := func() *gorm.DB {
-		q := r.db.Model(&Audit{})
-		if projectID != "" {
-			q = q.Where("project_id = ?", projectID)
-		}
-		if environment != "" {
-			q = q.Where("environment = ?", environment)
-		}
-		return q
+	// Build WHERE clause once — shared across all CTEs
+	where := "1=1"
+	args := []interface{}{}
+	if projectID != "" {
+		where += " AND project_id = ?"
+		args = append(args, projectID)
+	}
+	if environment != "" {
+		where += " AND environment = ?"
+		args = append(args, environment)
 	}
 
-	// Main metrics
+	// ── Main metrics ──────────────────────────────────────────────────────────
 	type mainRow struct {
 		Total           int64   `gorm:"column:total"`
 		Errors4xx       int64   `gorm:"column:errors_4xx"`
@@ -325,15 +326,16 @@ func (r *repository) GetStats(projectID, environment string) (*AuditStats, error
 		LastEventAt     string  `gorm:"column:last_event_at"`
 	}
 	var m mainRow
-	base().Select(`
-		COUNT(*) AS total,
-		COUNT(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 END) AS errors_4xx,
-		COUNT(CASE WHEN status_code >= 500 THEN 1 END) AS errors_5xx,
-		COALESCE(AVG(response_time), 0) AS avg_response_time,
-		COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time), 0) AS p95_response_time,
-		COUNT(DISTINCT service_name) AS active_services,
-		COALESCE(TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') AS last_event_at
-	`).Scan(&m)
+	r.db.Raw(`
+		SELECT
+			COUNT(*) AS total,
+			COUNT(CASE WHEN status_code >= 400 AND status_code < 500 THEN 1 END) AS errors_4xx,
+			COUNT(CASE WHEN status_code >= 500 THEN 1 END) AS errors_5xx,
+			COALESCE(AVG(response_time), 0) AS avg_response_time,
+			COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time), 0) AS p95_response_time,
+			COUNT(DISTINCT service_name) AS active_services,
+			COALESCE(TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') AS last_event_at
+		FROM audits WHERE `+where, args...).Scan(&m)
 
 	stats.Total = m.Total
 	stats.Errors4xx = m.Errors4xx
@@ -343,68 +345,88 @@ func (r *repository) GetStats(projectID, environment string) (*AuditStats, error
 	stats.ActiveServices = m.ActiveServices
 	stats.LastEventAt = m.LastEventAt
 
-	// By service
-	type serviceRow struct {
-		ServiceName     string
-		Requests        int64
-		Errors          int64
-		AvgResponseTime float64
-		LastEvent       string
+	// ── By service, status class, method, timeline — single CTE scan ─────────
+	type cteRow struct {
+		Kind        string  `gorm:"column:kind"`
+		Key1        string  `gorm:"column:key1"`
+		Key2        string  `gorm:"column:key2"`
+		N           int64   `gorm:"column:n"`
+		Errors      int64   `gorm:"column:errors"`
+		AvgMs       float64 `gorm:"column:avg_ms"`
+		LastEventAt string  `gorm:"column:last_event_at"`
 	}
-	var serviceRows []serviceRow
-	base().Select(`
-		service_name,
-		COUNT(*) AS requests,
-		COUNT(CASE WHEN status_code >= 400 THEN 1 END) AS errors,
-		COALESCE(AVG(response_time), 0) AS avg_response_time,
-		COALESCE(TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') AS last_event
-	`).Group("service_name").Order("COUNT(*) DESC").Scan(&serviceRows)
-	for _, row := range serviceRows {
-		stats.ByService = append(stats.ByService, ServiceBreakdown(row))
-	}
+	var rows []cteRow
 
-	// By status class
-	type statusRow struct {
-		Class string
-		Count int64
-	}
-	var statusRows []statusRow
-	base().Select(`
-		CASE
-			WHEN status_code >= 500 THEN '5xx'
-			WHEN status_code >= 400 THEN '4xx'
-			WHEN status_code >= 300 THEN '3xx'
-			ELSE '2xx'
-		END AS class,
-		COUNT(*) AS count
-	`).Group("class").Scan(&statusRows)
-	for _, row := range statusRows {
-		stats.ByStatusClass[row.Class] = row.Count
-	}
+	cteArgs := append(args, args...) // service + status reuse same WHERE
+	cteArgs = append(cteArgs, args...)
+	cteArgs = append(cteArgs, args...)
 
-	// By method
-	type methodRow struct {
-		Method string
-		Count  int64
-	}
-	var methodRows []methodRow
-	base().Select("method, COUNT(*) AS count").Group("method").Scan(&methodRows)
-	for _, row := range methodRows {
-		stats.ByMethod[row.Method] = row.Count
-	}
+	r.db.Raw(`
+		WITH f AS (SELECT * FROM audits WHERE `+where+`)
+		SELECT 'service' AS kind,
+			service_name AS key1, '' AS key2,
+			COUNT(*) AS n,
+			COUNT(CASE WHEN status_code >= 400 THEN 1 END) AS errors,
+			COALESCE(AVG(response_time), 0) AS avg_ms,
+			COALESCE(TO_CHAR(MAX(timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), '') AS last_event_at
+		FROM f GROUP BY service_name
 
-	// Timeline — events per hour last 24h
-	type timelineRow struct {
-		Hour  string
-		Count int64
+		UNION ALL
+
+		SELECT 'status' AS kind,
+			CASE
+				WHEN status_code >= 500 THEN '5xx'
+				WHEN status_code >= 400 THEN '4xx'
+				WHEN status_code >= 300 THEN '3xx'
+				ELSE '2xx'
+			END AS key1, '' AS key2,
+			COUNT(*) AS n, 0 AS errors, 0 AS avg_ms, '' AS last_event_at
+		FROM f GROUP BY key1
+
+		UNION ALL
+
+		SELECT 'method' AS kind,
+			method AS key1, '' AS key2,
+			COUNT(*) AS n, 0 AS errors, 0 AS avg_ms, '' AS last_event_at
+		FROM f GROUP BY method
+
+		UNION ALL
+
+		SELECT 'timeline' AS kind,
+			TO_CHAR(DATE_TRUNC('hour', timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS key1, '' AS key2,
+			COUNT(*) AS n, 0 AS errors, 0 AS avg_ms, '' AS last_event_at
+		FROM f
+		WHERE timestamp >= NOW() - INTERVAL '24 hours'
+		GROUP BY key1
+		ORDER BY key1 ASC
+	`, args...).Scan(&rows)
+
+	serviceOrder := []string{}
+	serviceMap := map[string]*ServiceBreakdown{}
+
+	for _, row := range rows {
+		switch row.Kind {
+		case "service":
+			serviceOrder = append(serviceOrder, row.Key1)
+			serviceMap[row.Key1] = &ServiceBreakdown{
+				ServiceName:     row.Key1,
+				Requests:        row.N,
+				Errors:          row.Errors,
+				AvgResponseTime: row.AvgMs,
+				LastEvent:       row.LastEventAt,
+			}
+		case "status":
+			stats.ByStatusClass[row.Key1] = row.N
+		case "method":
+			if row.Key1 != "" {
+				stats.ByMethod[row.Key1] = row.N
+			}
+		case "timeline":
+			stats.Timeline = append(stats.Timeline, TimelinePoint{Hour: row.Key1, Count: row.N})
+		}
 	}
-	var timelineRows []timelineRow
-	tq := base().
-		Select(`TO_CHAR(DATE_TRUNC('hour', timestamp), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS hour, COUNT(*) AS count`).
-		Where("timestamp >= NOW() - INTERVAL '24 hours'")
-	tq.Group("hour").Order("hour ASC").Scan(&timelineRows)
-	for _, row := range timelineRows {
-		stats.Timeline = append(stats.Timeline, TimelinePoint(row))
+	for _, name := range serviceOrder {
+		stats.ByService = append(stats.ByService, *serviceMap[name])
 	}
 
 	return stats, nil

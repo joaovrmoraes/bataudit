@@ -59,6 +59,7 @@ export function useOrphans(filters?: OrphanFilters) {
   return useQuery({
     queryKey: ['audit-orphans', filters],
     queryFn: () => getOrphans(filters),
+    enabled: !!filters?.projectId,
     refetchInterval: 60_000,
   })
 }
