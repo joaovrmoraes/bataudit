@@ -30,6 +30,7 @@ import (
 	"github.com/joaovrmoraes/bataudit/internal/db"
 	_ "github.com/joaovrmoraes/bataudit/docs"
 	"github.com/joaovrmoraes/bataudit/internal/health"
+	hcpkg "github.com/joaovrmoraes/bataudit/internal/healthcheck"
 	"github.com/joaovrmoraes/bataudit/internal/notification"
 	"github.com/joaovrmoraes/bataudit/internal/tiering"
 	swaggerFiles "github.com/swaggo/files"
@@ -141,12 +142,24 @@ func main() {
 	notifGroup.Use(authService.JWTMiddleware())
 	notifHandler.RegisterRoutes(notifGroup)
 
+	// Healthcheck monitor routes
+	hcRepo := hcpkg.NewRepository(conn)
+	hcPoller := hcpkg.NewPoller(hcRepo, nil) // poller in reader is only used for RunCheck (test endpoint)
+	hcHandler := hcpkg.NewHandler(hcRepo, hcPoller)
+	hcGroup := v1.Group("/monitors")
+	hcGroup.Use(authService.JWTMiddleware())
+	hcHandler.RegisterRoutes(hcGroup)
+
 	healthHandler := health.NewHealthHandler(conn, "1.0.0", "development")
 	healthHandler.RegisterRoutes(r.Group(""))
 
 	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	r.Static("/app", "./frontend/dist")
+
+	// Serve root-level static files that the browser requests outside /app/
+	r.StaticFile("/sw.js", "./frontend/dist/sw.js")
+	r.StaticFile("/vite.svg", "./frontend/dist/vite.svg")
 
 	r.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/app/")

@@ -5,12 +5,13 @@ import {
   AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { RefreshCw, AlertCircle, Filter, X, ChevronUp, ChevronDown, ShieldAlert, Download, Unlink } from 'lucide-react'
+import { RefreshCw, AlertCircle, Filter, X, ChevronUp, ChevronDown, ShieldAlert, Download, Unlink, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { useAuditList, useAuditStats, useAnomalyAlerts, useOrphans } from '@/queries/audit'
+import { useMonitors } from '@/queries/healthcheck'
 import { useAuditHistory } from '@/queries/tiering'
 import { useProject } from '@/lib/project-context'
 import { useEnvironment } from '@/lib/environment-context'
@@ -121,6 +122,16 @@ function RouteComponent() {
   const { data: historyData } = useAuditHistory(selectedProjectId, undefined, undefined, selectedEnvironment)
   const since24h = React.useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), [])
   const { data: orphansData } = useOrphans({ projectId: selectedProjectId, start_date: since24h, environment: selectedEnvironment })
+  const { data: monitors = [] } = useMonitors(selectedProjectId ?? undefined)
+
+  // Map monitor last_status by service name (name field matches service_name convention).
+  const monitorByService = React.useMemo(() => {
+    const map: Record<string, 'up' | 'down' | 'unknown'> = {}
+    for (const m of monitors) {
+      map[m.name] = m.last_status
+    }
+    return map
+  }, [monitors])
 
   function refresh() {
     refetchStats()
@@ -285,6 +296,25 @@ function RouteComponent() {
         ))}
       </div>
 
+      {/* Down monitors banner */}
+      {monitors.filter(m => m.last_status === 'down').length > 0 && (
+        <Card className="p-4 border-[#f87171]/30 bg-[#f87171]/5 flex items-start gap-3">
+          <XCircle className="h-4 w-4 text-[#f87171] shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0 space-y-1">
+            <p className="text-sm font-semibold text-[#f87171]">
+              {monitors.filter(m => m.last_status === 'down').length} monitor{monitors.filter(m => m.last_status === 'down').length !== 1 ? 's' : ''} down
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {monitors.filter(m => m.last_status === 'down').map(m => (
+                <span key={m.id} className="inline-flex items-center gap-1 rounded border border-[#f87171]/30 bg-[#f87171]/10 px-2 py-0.5 text-xs font-mono text-[#f87171]">
+                  {m.name} — {m.url}
+                </span>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Orphan events banner */}
       {(orphansData?.total ?? 0) > 0 && (
         <div className="space-y-2">
@@ -349,15 +379,16 @@ function RouteComponent() {
                   { key: 'error_rate', label: 'Error Rate' },
                   { key: 'avg_response_time', label: 'Avg Time' },
                   { key: 'last_event', label: 'Last Event' },
+                  { key: 'health', label: 'Health' },
                 ].map(col => (
                   <th
                     key={col.key}
                     className="px-4 py-3 text-left cursor-pointer select-none hover:text-foreground transition-colors"
-                    onClick={() => col.key !== 'error_rate' && toggleSort(col.key)}
+                    onClick={() => col.key !== 'error_rate' && col.key !== 'health' && toggleSort(col.key)}
                   >
                     <span className="flex items-center gap-1">
                       {col.label}
-                      {col.key !== 'error_rate' && <SortIcon col={col.key} />}
+                      {col.key !== 'error_rate' && col.key !== 'health' && <SortIcon col={col.key} />}
                     </span>
                   </th>
                 ))}
@@ -377,6 +408,21 @@ function RouteComponent() {
                     <td className="px-4 py-3">{errorRateBadge(rate)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{Math.round(svc.avg_response_time)}ms</td>
                     <td className="px-4 py-3 text-muted-foreground">{timeAgo(svc.last_event)}</td>
+                    <td className="px-4 py-3">
+                      {monitorByService[svc.service_name] === 'up' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#34d399]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#34d399]" /> UP
+                        </span>
+                      )}
+                      {monitorByService[svc.service_name] === 'down' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#f87171]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#f87171]" /> DOWN
+                        </span>
+                      )}
+                      {!monitorByService[svc.service_name] && (
+                        <span className="text-[10px] text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}

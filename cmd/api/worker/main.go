@@ -12,6 +12,7 @@ import (
 	"github.com/joaovrmoraes/bataudit/internal/audit"
 	"github.com/joaovrmoraes/bataudit/internal/config"
 	"github.com/joaovrmoraes/bataudit/internal/db"
+	"github.com/joaovrmoraes/bataudit/internal/healthcheck"
 	"github.com/joaovrmoraes/bataudit/internal/notification"
 	"github.com/joaovrmoraes/bataudit/internal/tiering"
 	"github.com/joaovrmoraes/bataudit/internal/worker"
@@ -72,6 +73,12 @@ func main() {
 
 	detector.Start(ctx) // background goroutine for silent-service checks
 
+	// Start healthcheck poller.
+	hcRepo := healthcheck.NewRepository(conn)
+	hcSink := &healthEventSink{svc: auditService, notif: notifSender}
+	hcPoller := healthcheck.NewPoller(hcRepo, hcSink)
+	hcPoller.Start(ctx)
+
 	// Start data tiering scheduler (aggregates old events nightly).
 	tieringRepo := tiering.NewRepository(conn)
 	tieringScheduler := tiering.NewSchedulerFromEnv(tieringRepo, config.GetEnv)
@@ -126,6 +133,43 @@ func (s *auditAlertSink) CreateAlert(
 		ProjectID:   projectID,
 		ServiceName: serviceName,
 		RuleType:    string(ruleType),
+		Timestamp:   event.Timestamp,
+		Details:     details,
+	})
+
+	return nil
+}
+
+// healthEventSink implements healthcheck.EventSink by writing system.healthcheck.* events
+// and dispatching notifications.
+type healthEventSink struct {
+	svc   *audit.Service
+	notif *notification.Sender
+}
+
+func (s *healthEventSink) CreateHealthEvent(projectID, monitorName, monitorURL, eventType string, details map[string]any) error {
+	payload, _ := json.Marshal(details)
+
+	event := audit.Audit{
+		ID:          uuid.New().String(),
+		EventType:   eventType,
+		Path:        monitorURL,
+		Identifier:  "system",
+		ServiceName: monitorName,
+		Environment: "production",
+		ProjectID:   projectID,
+		Timestamp:   time.Now(),
+		RequestBody: datatypes.JSON(payload),
+	}
+	if err := s.svc.CreateAudit(event); err != nil {
+		return err
+	}
+
+	go s.notif.NotifyAll(context.Background(), notification.AlertPayload{
+		EventID:     event.ID,
+		ProjectID:   projectID,
+		ServiceName: monitorName,
+		RuleType:    eventType,
 		Timestamp:   event.Timestamp,
 		Details:     details,
 	})

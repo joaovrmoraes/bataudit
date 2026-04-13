@@ -1052,6 +1052,9 @@ jobs:
 - [x] `src/routes/app/_layout/insights.tsx` — página com seletor de período (7d/30d/90d) + 4 ranking cards (2×2)
 - [x] Sidebar atualizada com link "Insights" + ícone `BarChart2`
 - [x] `routeTree.gen.ts` atualizado com a nova rota
+- [x] Linhas clicáveis — navegam para o dashboard com filtros pré-aplicados (method, path, identifier, sort)
+- [x] Filtro `path` adicionado no backend (`ListFilters`), handler, frontend params e URL schema
+- [x] Scroll automático para `#events` ao chegar no dashboard via Insights
 
 ---
 

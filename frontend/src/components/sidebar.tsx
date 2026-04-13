@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Key, ShieldAlert, Bell, Archive, Users, BarChart2 } from 'lucide-react'
+import { LayoutDashboard, Activity, Key, ShieldAlert, Bell, Archive, Users, BarChart2, HeartPulse } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 
 interface NavItemProps {
@@ -43,6 +43,7 @@ export function Sidebar() {
         <NavItem to="/app/anomalies" icon={ShieldAlert} label="Anomalies" />
         <NavItem to="/app/insights" icon={BarChart2} label="Insights" />
         <NavItem to="/app/members" icon={Users} label="Members" />
+        <NavItem to="/app/settings/healthcheck" icon={HeartPulse} label="Healthcheck" />
         <NavItem to="/app/settings/api-keys" icon={Key} label="API Keys" />
         <NavItem to="/app/settings/notifications" icon={Bell} label="Notifications" />
         <NavItem to="/app/settings/retention" icon={Archive} label="Retention" />
