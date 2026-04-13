@@ -16,6 +16,7 @@ type ListFilters struct {
 	ServiceName string
 	Identifier  string
 	Method      string
+	Path        string
 	StatusCode  int
 	Environment string
 	EventType   string // http | system.alert
@@ -34,6 +35,7 @@ type Repository interface {
 	GetSessions(filters SessionFilters) ([]Session, error)
 	GetSessionByID(sessionID string) (*SessionDetail, error)
 	GetOrphans(filters OrphanFilters) ([]AuditSummary, error)
+	GetInsights(filters InsightFilters) (*InsightsResult, error)
 }
 
 type repository struct {
@@ -69,6 +71,9 @@ func (r *repository) List(limit, offset int, filters ListFilters) (ListResult, e
 	}
 	if filters.Method != "" {
 		query = query.Where("method = ?", filters.Method)
+	}
+	if filters.Path != "" {
+		query = query.Where("path = ?", filters.Path)
 	}
 	if filters.StatusCode != 0 {
 		query = query.Where("status_code = ?", filters.StatusCode)
@@ -431,4 +436,100 @@ func (r *repository) GetOrphans(filters OrphanFilters) ([]AuditSummary, error) {
 		Find(&orphans).Error
 
 	return orphans, err
+}
+
+func (r *repository) GetInsights(filters InsightFilters) (*InsightsResult, error) {
+	result := &InsightsResult{
+		TopEndpoints:   []TopEndpoint{},
+		TopUsers:       []TopUser{},
+		TopErrorRoutes: []TopErrorRoute{},
+		TopSlowRoutes:  []TopSlowRoute{},
+	}
+
+	days := 7
+	switch filters.Period {
+	case "30d":
+		days = 30
+	case "90d":
+		days = 90
+	}
+
+	base := func() *gorm.DB {
+		q := r.db.Model(&Audit{}).
+			Where("timestamp >= NOW() - INTERVAL '1 day' * ?", days).
+			Where("event_type != 'system.alert' OR event_type IS NULL")
+		if filters.ProjectID != "" {
+			q = q.Where("project_id = ?", filters.ProjectID)
+		}
+		return q
+	}
+
+	// Top endpoints
+	var topEndpoints []TopEndpoint
+	base().
+		Select("path, method, COUNT(*) AS count").
+		Group("path, method").
+		Order("count DESC").
+		Limit(10).
+		Scan(&topEndpoints)
+	if topEndpoints != nil {
+		result.TopEndpoints = topEndpoints
+	}
+
+	// Top users
+	var topUsers []TopUser
+	base().
+		Where("identifier != '' AND identifier != 'anonymous'").
+		Select("identifier, COALESCE(MAX(user_email), '') AS user_email, COALESCE(MAX(user_name), '') AS user_name, COUNT(*) AS count").
+		Group("identifier").
+		Order("count DESC").
+		Limit(10).
+		Scan(&topUsers)
+	if topUsers != nil {
+		result.TopUsers = topUsers
+	}
+
+	// Top error routes
+	type errorRow struct {
+		Path       string
+		Method     string
+		ErrorCount int64
+		Total      int64
+	}
+	var errorRows []errorRow
+	base().
+		Select("path, method, COUNT(CASE WHEN status_code >= 400 THEN 1 END) AS error_count, COUNT(*) AS total").
+		Group("path, method").
+		Having("COUNT(CASE WHEN status_code >= 400 THEN 1 END) > 0").
+		Order("error_count DESC").
+		Limit(10).
+		Scan(&errorRows)
+	for _, row := range errorRows {
+		rate := 0.0
+		if row.Total > 0 {
+			rate = float64(row.ErrorCount) / float64(row.Total) * 100
+		}
+		result.TopErrorRoutes = append(result.TopErrorRoutes, TopErrorRoute{
+			Path:       row.Path,
+			Method:     row.Method,
+			ErrorCount: row.ErrorCount,
+			Total:      row.Total,
+			ErrorRate:  rate,
+		})
+	}
+
+	// Top slow routes
+	var topSlow []TopSlowRoute
+	base().
+		Where("response_time > 0").
+		Select("path, method, COALESCE(AVG(response_time), 0) AS avg_ms").
+		Group("path, method").
+		Order("avg_ms DESC").
+		Limit(10).
+		Scan(&topSlow)
+	if topSlow != nil {
+		result.TopSlowRoutes = topSlow
+	}
+
+	return result, nil
 }

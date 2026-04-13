@@ -65,6 +65,7 @@ func (h *Handler) RegisterReadRoutes(router *gin.RouterGroup) {
 	router.GET("/sessions", h.Sessions)
 	router.GET("/sessions/:session_id", h.SessionByID)
 	router.GET("/orphans", h.Orphans)
+	router.GET("/insights", h.Insights)
 	router.GET("/:id", h.Details)
 }
 
@@ -216,6 +217,7 @@ func (h *Handler) List(c *gin.Context) {
 		ServiceName: c.Query("service_name"),
 		Identifier:  c.Query("identifier"),
 		Method:      c.Query("method"),
+		Path:        c.Query("path"),
 		Environment: c.Query("environment"),
 		EventType:   c.Query("event_type"),
 		SortBy:      c.Query("sort_by"),
@@ -502,4 +504,32 @@ func (h *Handler) Orphans(c *gin.Context) {
 		"data":  orphans,
 		"total": len(orphans),
 	})
+}
+
+// Insights godoc
+// @Summary      Usage analytics rankings
+// @Description  Returns top 10 rankings: endpoints by volume, users by activity, routes by error rate, routes by response time. Period: 7d (default) | 30d | 90d.
+// @Tags         audit
+// @Produce      json
+// @Security     BearerAuth
+// @Param        project_id  query     string  false  "Filter by project ID"
+// @Param        period      query     string  false  "Period: 7d | 30d | 90d (default: 7d)"
+// @Success      200         {object}  InsightsResult
+// @Failure      500         {object}  map[string]string
+// @Router       /audit/insights [get]
+func (h *Handler) Insights(c *gin.Context) {
+	period := c.Query("period")
+	if period != "30d" && period != "90d" {
+		period = "7d"
+	}
+	filters := InsightFilters{
+		ProjectID: c.Query("project_id"),
+		Period:    period,
+	}
+	result, err := h.service.GetInsights(filters)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve insights"})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }

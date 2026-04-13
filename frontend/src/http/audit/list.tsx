@@ -36,6 +36,7 @@ interface ListAuditParams {
   projectId?: string
   service_name?: string
   method?: string
+  path?: string
   status_code?: string
   environment?: string
   identifier?: string
@@ -55,6 +56,7 @@ export async function ListAudit(
   if (params?.projectId) search.set('project_id', params.projectId)
   if (params?.service_name) search.set('service_name', params.service_name)
   if (params?.method) search.set('method', params.method)
+  if (params?.path) search.set('path', params.path)
   if (params?.status_code) search.set('status_code', params.status_code)
   if (params?.environment) search.set('environment', params.environment)
   if (params?.identifier) search.set('identifier', params.identifier)

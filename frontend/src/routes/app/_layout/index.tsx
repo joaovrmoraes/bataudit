@@ -1,5 +1,5 @@
 import React from 'react'
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch, useLocation } from '@tanstack/react-router'
 import { z } from 'zod'
 import {
   AreaChart, Area, BarChart, Bar, Cell,
@@ -23,6 +23,7 @@ const searchSchema = z.object({
   page: z.number().optional().default(1),
   service_name: z.string().optional(),
   method: z.string().optional(),
+  path: z.string().optional(),
   status_code: z.string().optional(),
   identifier: z.string().optional(),
   start_date: z.string().optional(),
@@ -80,10 +81,20 @@ function timeAgo(ts: string) {
 function RouteComponent() {
   const navigate = useNavigate()
   const search = useSearch({ strict: false })
+  const location = useLocation()
   const { selectedProjectId } = useProject()
   const { selectedEnvironment, setSelectedEnvironment } = useEnvironment()
 
   const [filterOpen, setFilterOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    if (location.hash === 'events' || location.hash === '#events') {
+      const timer = setTimeout(() => {
+        document.getElementById('events')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [location.hash])
   const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null)
   const [sortCol, setSortCol] = React.useState<string>('requests')
   const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc')
@@ -94,6 +105,7 @@ function RouteComponent() {
   const activeFilters = {
     service_name: search.service_name,
     method: search.method,
+    path: search.path,
     status_code: search.status_code,
     environment: selectedEnvironment ?? undefined,
     identifier: search.identifier,
@@ -464,7 +476,7 @@ function RouteComponent() {
       </div>
 
       {/* Event feed — full width */}
-      <div className="space-y-3">
+      <div id="events" className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">Event Feed</p>
             <div className="flex items-center gap-2">

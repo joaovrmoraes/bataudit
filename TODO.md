@@ -1032,7 +1032,7 @@ jobs:
 
 ---
 
-## Fase 26 — Usage Analytics (Rankings)
+## ~~Fase 26 — Usage Analytics (Rankings)~~ ✅ CONCLUÍDO
 
 **Objetivo:** Aba "Insights" no dashboard com rankings de uso — quais endpoints são mais acessados, quais usuários são mais ativos, quais rotas têm mais erro e mais latência. Voltado para devs e produto.
 
@@ -1040,23 +1040,111 @@ jobs:
 
 ### 26.1 Backend
 
-- [ ] Endpoint `GET /v1/audit/insights/top-endpoints` — top 10 `(path, method)` por `COUNT(*)`, filtrável por período
-- [ ] Endpoint `GET /v1/audit/insights/top-users` — top 10 `user_id` por contagem de eventos, com `user_email` e `user_name`
-- [ ] Endpoint `GET /v1/audit/insights/top-error-routes` — top 10 `(path, method)` por `COUNT(*) WHERE status_code >= 400`, inclui error rate %
-- [ ] Endpoint `GET /v1/audit/insights/top-slow-routes` — top 10 `(path, method)` por `AVG(duration_ms)` (e p95 se possível)
-- [ ] Todos aceitam query params `?period=7d|30d|90d` e `?project_id=`
-- [ ] Adicionar rotas ao Swagger
+- [x] Endpoint `GET /v1/audit/insights` — retorna os 4 rankings em uma única chamada (top_endpoints, top_users, top_error_routes, top_slow_routes), filtrável por `?period=7d|30d|90d` e `?project_id=`
+- [x] Tipos adicionados ao `model.go`: `InsightFilters`, `TopEndpoint`, `TopUser`, `TopErrorRoute`, `TopSlowRoute`, `InsightsResult`
+- [x] `GetInsights()` adicionado à interface `Repository` e implementado em `repository.go`
+- [x] Service e handler atualizados; rota `GET /audit/insights` registrada no Reader
 
 ### 26.2 Frontend
 
-- [ ] Nova aba ou página "Insights" no sidebar
-- [ ] Seletor de período: 7d / 30d / 90d (padrão: 7d)
-- [ ] 4 cards de ranking lado a lado (ou 2x2 em tela menor):
-  - Top 10 endpoints mais acessados (path + method + contagem)
-  - Top 10 usuários mais ativos (identifier + email + contagem de eventos)
-  - Top 10 rotas com mais erro (path + method + contagem + error rate %)
-  - Top 10 rotas mais lentas (path + method + avg_ms)
-- [ ] Cada card é uma tabela simples com rank numérico, sem paginação
+- [x] `src/http/audit/insights.ts` — fetch + tipos
+- [x] `useInsights()` hook adicionado em `src/queries/audit.ts`
+- [x] `src/routes/app/_layout/insights.tsx` — página com seletor de período (7d/30d/90d) + 4 ranking cards (2×2)
+- [x] Sidebar atualizada com link "Insights" + ícone `BarChart2`
+- [x] `routeTree.gen.ts` atualizado com a nova rota
+
+---
+
+## Fase 31.1 — Personal Access Token (PAT)
+
+**Objetivo:** Criar um tipo de token de longa duração para autenticar a CLI e qualquer acesso programático ao Reader — sem depender de JWT (que expira) nem de API Key (que é só para o Writer).
+
+**Contexto:** JWT expira em horas — inviável para CLI. API Keys autenticam no Writer para enviar eventos, não no Reader para ler. Modelo igual ao GitHub (`ghp_xxx`) e AWS (Access Key ID) — gerado uma vez no dashboard, salvo em `~/.bataudit/config`, nunca expira (ou tem expiração longa configurável).
+
+### 31.1.1 Modelo de dados
+
+- [ ] Criar tabela `access_tokens` (id, user_id, project_id, name, token_hash, scopes `read|write|admin`, expires_at nullable, last_used_at, created_at)
+- [ ] Prefixo do token: `bat_cli_` para diferenciação visual
+- [ ] Criar migration para a tabela acima
+
+### 31.1.2 Backend
+
+- [ ] Endpoint `POST /v1/access-tokens` — gerar PAT (nome + scopes + expiração opcional). Retorna o token em plain text uma única vez.
+- [ ] Endpoint `GET /v1/access-tokens` — listar tokens do usuário (sem revelar o valor)
+- [ ] Endpoint `DELETE /v1/access-tokens/:id` — revogar token
+- [ ] Middleware no Reader que aceita `Authorization: Bearer bat_cli_xxx` além do JWT atual
+- [ ] Middleware valida hash do token, verifica scopes e `expires_at`
+
+### 31.1.3 Dashboard
+
+- [ ] Settings → nova seção "Access Tokens"
+- [ ] Formulário: nome + scopes (read / write) + expiração opcional
+- [ ] Exibir token gerado uma única vez (igual API Keys)
+- [ ] Listagem com nome, scopes, último uso, expiração, botão revogar
+
+---
+
+## Fase 31.2 — BatAudit CLI
+
+**Objetivo:** CLI para consultar eventos, filtrar logs, monitorar anomalias e sessões direto do terminal — igual ao AWS CloudWatch CLI. Permite jogar output para uma IA analisar.
+
+**Contexto:** Nenhuma ferramenta self-hosted de audit log tem CLI. Diferencial real. Devs já sabem usar CLIs no estilo AWS/GitHub. O caso de uso "jogar para IA analisar" é genuinamente novo.
+
+**Dependência:** Fase 31.1 (PAT) — a CLI autentica via `bat_cli_xxx` token.
+
+### 31.2.1 Stack
+
+- TypeScript + Node.js — publicado no npm como `@bataudit/cli` (instalável com `npm i -g`, `pnpm add -g`, `yarn global add`)
+- `commander` — parsing de comandos e flags
+- `clack` — só para o wizard interativo de `bataudit configure`
+- `chalk` — output colorido
+- Localizado em `sdks/cli/` no mesmo repo
+
+### 31.2.2 Configuração (`bataudit configure`)
+
+- [ ] Wizard interativo via `clack`: URL do servidor + token PAT + nome do perfil
+- [ ] Salvar em `~/.bataudit/config` no formato TOML com suporte a múltiplos perfis:
+  ```toml
+  [default]
+  url = https://bataudit.meuservidor.com
+  token = bat_cli_xxxx
+
+  [staging]
+  url = http://staging:8082
+  token = bat_cli_yyyy
+  ```
+- [ ] Flag global `--profile <nome>` para usar perfil alternativo
+- [ ] `bataudit whoami` — exibe usuário e projeto do token configurado
+
+### 31.2.3 Comandos — Events
+
+- [ ] `bataudit events list` — lista eventos (paginado, 50 por padrão)
+- [ ] Flags: `--service`, `--environment`, `--method`, `--status`, `--from`, `--to`, `--limit`, `--project`
+- [ ] `bataudit events get <id>` — detalhes completos de um evento
+- [ ] `bataudit events tail` — polling contínuo de eventos novos (estilo `tail -f`)
+- [ ] Flag `--output json` em todos os comandos — para pipe com `jq` ou jogar para IA
+
+### 31.2.4 Comandos — Sessions
+
+- [ ] `bataudit sessions list` — lista sessões derivadas
+- [ ] Flags: `--identifier`, `--service`, `--from`, `--to`
+- [ ] `bataudit sessions get <id>` — eventos da sessão em ordem cronológica
+
+### 31.2.5 Comandos — Anomalies
+
+- [ ] `bataudit anomalies list` — lista alertas `system.alert` recentes
+- [ ] Flags: `--rule-type`, `--from`, `--to`, `--limit`
+- [ ] `bataudit anomalies watch` — polling contínuo de novos alertas
+
+### 31.2.6 Comandos — Stats
+
+- [ ] `bataudit stats` — resumo do projeto (total, erros, avg response time, serviços ativos)
+- [ ] Flags: `--environment`, `--project`
+
+### 31.2.7 CI/CD
+
+- [ ] Criar `publish-cli.yml` — publicar `@bataudit/cli` no npm em tags `cli-v*`
+- [ ] Documentar no Docusaurus — seção "CLI" com todos os comandos e exemplos
 
 ---
 

@@ -20,6 +20,7 @@ type mockRepository struct {
 	getSessionsFn      func(filters SessionFilters) ([]Session, error)
 	getSessionByIDFn   func(sessionID string) (*SessionDetail, error)
 	getOrphansFn       func(filters OrphanFilters) ([]AuditSummary, error)
+	getInsightsFn      func(filters InsightFilters) (*InsightsResult, error)
 }
 
 func (m *mockRepository) Create(audit *Audit) error {
@@ -76,6 +77,18 @@ func (m *mockRepository) GetOrphans(filters OrphanFilters) ([]AuditSummary, erro
 		return m.getOrphansFn(filters)
 	}
 	return nil, nil
+}
+
+func (m *mockRepository) GetInsights(filters InsightFilters) (*InsightsResult, error) {
+	if m.getInsightsFn != nil {
+		return m.getInsightsFn(filters)
+	}
+	return &InsightsResult{
+		TopEndpoints:   []TopEndpoint{},
+		TopUsers:       []TopUser{},
+		TopErrorRoutes: []TopErrorRoute{},
+		TopSlowRoutes:  []TopSlowRoute{},
+	}, nil
 }
 
 // --- Helpers ---

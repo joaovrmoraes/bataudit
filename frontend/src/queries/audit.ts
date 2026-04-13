@@ -4,6 +4,7 @@ import { getAuditStats } from '@/http/audit/stats'
 import { getAuditDetail } from '@/http/audit/details'
 import { getSessions, getSessionByID, type SessionFilters } from '@/http/audit/sessions'
 import { getOrphans, type OrphanFilters } from '@/http/audit/orphans'
+import { getInsights } from '@/http/audit/insights'
 import type { Session } from '@/http/audit/sessions'
 
 export function useAuditList(page: number, limit: number, projectId?: string | null, filters?: Record<string, string | undefined>) {
@@ -59,6 +60,14 @@ export function useOrphans(filters?: OrphanFilters) {
     queryKey: ['audit-orphans', filters],
     queryFn: () => getOrphans(filters),
     refetchInterval: 60_000,
+  })
+}
+
+export function useInsights(projectId?: string | null, period = '7d') {
+  return useQuery({
+    queryKey: ['insights', projectId, period],
+    queryFn: () => getInsights(projectId, period),
+    staleTime: 5 * 60_000,
   })
 }
 

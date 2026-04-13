@@ -141,6 +141,46 @@ type AuditStats struct {
 	Timeline        []TimelinePoint    `json:"timeline"`
 }
 
+// InsightFilters for the insights/rankings endpoints
+type InsightFilters struct {
+	ProjectID string
+	Period    string // 7d | 30d | 90d
+}
+
+type TopEndpoint struct {
+	Path   string `json:"path"`
+	Method string `json:"method"`
+	Count  int64  `json:"count"`
+}
+
+type TopUser struct {
+	Identifier string `json:"identifier"`
+	UserEmail  string `json:"user_email"`
+	UserName   string `json:"user_name"`
+	Count      int64  `json:"count"`
+}
+
+type TopErrorRoute struct {
+	Path      string  `json:"path"`
+	Method    string  `json:"method"`
+	ErrorCount int64  `json:"error_count"`
+	Total     int64   `json:"total"`
+	ErrorRate float64 `json:"error_rate"`
+}
+
+type TopSlowRoute struct {
+	Path   string  `json:"path"`
+	Method string  `json:"method"`
+	AvgMs  float64 `json:"avg_ms"`
+}
+
+type InsightsResult struct {
+	TopEndpoints   []TopEndpoint   `json:"top_endpoints"`
+	TopUsers       []TopUser       `json:"top_users"`
+	TopErrorRoutes []TopErrorRoute `json:"top_error_routes"`
+	TopSlowRoutes  []TopSlowRoute  `json:"top_slow_routes"`
+}
+
 type AuditSummary struct {
 	ID           string     `json:"id"`
 	EventType    string     `json:"event_type"`

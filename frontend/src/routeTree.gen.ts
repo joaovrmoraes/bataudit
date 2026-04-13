@@ -17,6 +17,7 @@ import { Route as AppLayoutIndexRouteImport } from './routes/app/_layout/index'
 import { Route as AppLayoutSessionsRouteImport } from './routes/app/_layout/sessions'
 import { Route as AppLayoutMembersRouteImport } from './routes/app/_layout/members'
 import { Route as AppLayoutAnomaliesRouteImport } from './routes/app/_layout/anomalies'
+import { Route as AppLayoutInsightsRouteImport } from './routes/app/_layout/insights'
 import { Route as AppLayoutSettingsRetentionRouteImport } from './routes/app/_layout/settings/retention'
 import { Route as AppLayoutSettingsNotificationsRouteImport } from './routes/app/_layout/settings/notifications'
 import { Route as AppLayoutSettingsApiKeysRouteImport } from './routes/app/_layout/settings/api-keys'
@@ -57,6 +58,11 @@ const AppLayoutAnomaliesRoute = AppLayoutAnomaliesRouteImport.update({
   path: '/anomalies',
   getParentRoute: () => AppLayoutRoute,
 } as any)
+const AppLayoutInsightsRoute = AppLayoutInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
+  getParentRoute: () => AppLayoutRoute,
+} as any)
 const AppLayoutSettingsRetentionRoute =
   AppLayoutSettingsRetentionRouteImport.update({
     id: '/settings/retention',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/app': typeof AppLayoutRouteWithChildren
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
+  '/app/insights': typeof AppLayoutInsightsRoute
   '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
   '/app/': typeof AppLayoutIndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/app': typeof AppLayoutIndexRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
+  '/app/insights': typeof AppLayoutInsightsRoute
   '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/app/_layout': typeof AppLayoutRouteWithChildren
   '/app/_layout/anomalies': typeof AppLayoutAnomaliesRoute
+  '/app/_layout/insights': typeof AppLayoutInsightsRoute
   '/app/_layout/members': typeof AppLayoutMembersRoute
   '/app/_layout/sessions': typeof AppLayoutSessionsRoute
   '/app/_layout/': typeof AppLayoutIndexRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app'
     | '/app/anomalies'
+    | '/app/insights'
     | '/app/members'
     | '/app/sessions'
     | '/app/'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/app'
     | '/app/anomalies'
+    | '/app/insights'
     | '/app/members'
     | '/app/sessions'
     | '/app/settings/api-keys'
@@ -138,6 +149,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/_layout'
     | '/app/_layout/anomalies'
+    | '/app/_layout/insights'
     | '/app/_layout/members'
     | '/app/_layout/sessions'
     | '/app/_layout/'
@@ -202,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLayoutAnomaliesRouteImport
       parentRoute: typeof AppLayoutRoute
     }
+    '/app/_layout/insights': {
+      id: '/app/_layout/insights'
+      path: '/insights'
+      fullPath: '/app/insights'
+      preLoaderRoute: typeof AppLayoutInsightsRouteImport
+      parentRoute: typeof AppLayoutRoute
+    }
     '/app/_layout/settings/retention': {
       id: '/app/_layout/settings/retention'
       path: '/settings/retention'
@@ -228,6 +247,7 @@ declare module '@tanstack/react-router' {
 
 interface AppLayoutRouteChildren {
   AppLayoutAnomaliesRoute: typeof AppLayoutAnomaliesRoute
+  AppLayoutInsightsRoute: typeof AppLayoutInsightsRoute
   AppLayoutMembersRoute: typeof AppLayoutMembersRoute
   AppLayoutSessionsRoute: typeof AppLayoutSessionsRoute
   AppLayoutIndexRoute: typeof AppLayoutIndexRoute
@@ -238,6 +258,7 @@ interface AppLayoutRouteChildren {
 
 const AppLayoutRouteChildren: AppLayoutRouteChildren = {
   AppLayoutAnomaliesRoute: AppLayoutAnomaliesRoute,
+  AppLayoutInsightsRoute: AppLayoutInsightsRoute,
   AppLayoutMembersRoute: AppLayoutMembersRoute,
   AppLayoutSessionsRoute: AppLayoutSessionsRoute,
   AppLayoutIndexRoute: AppLayoutIndexRoute,
