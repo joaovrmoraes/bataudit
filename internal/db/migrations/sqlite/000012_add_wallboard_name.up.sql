@@ -1,0 +1,1 @@
+ALTER TABLE wallboard_tokens ADD COLUMN name VARCHAR(128) NOT NULL DEFAULT '';

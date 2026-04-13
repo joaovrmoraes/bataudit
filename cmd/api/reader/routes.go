@@ -13,6 +13,7 @@ import (
 	hcpkg "github.com/joaovrmoraes/bataudit/internal/healthcheck"
 	"github.com/joaovrmoraes/bataudit/internal/notification"
 	"github.com/joaovrmoraes/bataudit/internal/tiering"
+	"github.com/joaovrmoraes/bataudit/internal/wallboard"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/gorm"
@@ -56,6 +57,15 @@ func registerRoutes(r *gin.Engine, conn *gorm.DB, authService *auth.Service) {
 	hcGroup := v1.Group("/monitors")
 	hcGroup.Use(authService.JWTMiddleware())
 	hcpkg.NewHandler(hcRepo, hcPoller).RegisterRoutes(hcGroup)
+
+	// ── Wallboard ─────────────────────────────────────────────────────────────
+	jwtSecret := config.GetEnv("JWT_SECRET", "change-me-in-production")
+	wbHandler := wallboard.NewHandler(wallboard.NewRepository(conn), jwtSecret)
+	wbHandler.RegisterPublicRoutes(v1.Group("/wallboard"))
+	wbHandler.RegisterDataRoutes(v1.Group("/wallboard"))
+	wbManage := v1.Group("/wallboard")
+	wbManage.Use(authService.JWTMiddleware())
+	wbHandler.RegisterManagementRoutes(wbManage)
 
 	// ── Health probe ──────────────────────────────────────────────────────────
 	health.NewHealthHandler(conn, "1.0.0", "development").RegisterRoutes(r.Group(""))

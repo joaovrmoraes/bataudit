@@ -11,6 +11,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TvRouteImport } from './routes/tv'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppLayoutRouteImport } from './routes/app/_layout'
 import { Route as AppLayoutIndexRouteImport } from './routes/app/_layout/index'
@@ -18,6 +19,7 @@ import { Route as AppLayoutSessionsRouteImport } from './routes/app/_layout/sess
 import { Route as AppLayoutMembersRouteImport } from './routes/app/_layout/members'
 import { Route as AppLayoutInsightsRouteImport } from './routes/app/_layout/insights'
 import { Route as AppLayoutAnomaliesRouteImport } from './routes/app/_layout/anomalies'
+import { Route as AppLayoutSettingsWallboardRouteImport } from './routes/app/_layout/settings/wallboard'
 import { Route as AppLayoutSettingsRetentionRouteImport } from './routes/app/_layout/settings/retention'
 import { Route as AppLayoutSettingsNotificationsRouteImport } from './routes/app/_layout/settings/notifications'
 import { Route as AppLayoutSettingsHealthcheckRouteImport } from './routes/app/_layout/settings/healthcheck'
@@ -28,6 +30,11 @@ const AppRouteImport = createFileRoute('/app')()
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TvRoute = TvRouteImport.update({
+  id: '/tv',
+  path: '/tv',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -64,6 +71,12 @@ const AppLayoutAnomaliesRoute = AppLayoutAnomaliesRouteImport.update({
   path: '/anomalies',
   getParentRoute: () => AppLayoutRoute,
 } as any)
+const AppLayoutSettingsWallboardRoute =
+  AppLayoutSettingsWallboardRouteImport.update({
+    id: '/settings/wallboard',
+    path: '/settings/wallboard',
+    getParentRoute: () => AppLayoutRoute,
+  } as any)
 const AppLayoutSettingsRetentionRoute =
   AppLayoutSettingsRetentionRouteImport.update({
     id: '/settings/retention',
@@ -91,6 +104,7 @@ const AppLayoutSettingsApiKeysRoute =
 
 export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
+  '/tv': typeof TvRoute
   '/app': typeof AppLayoutRouteWithChildren
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/insights': typeof AppLayoutInsightsRoute
@@ -101,9 +115,11 @@ export interface FileRoutesByFullPath {
   '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
+  '/app/settings/wallboard': typeof AppLayoutSettingsWallboardRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/tv': typeof TvRoute
   '/app': typeof AppLayoutIndexRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/insights': typeof AppLayoutInsightsRoute
@@ -113,10 +129,12 @@ export interface FileRoutesByTo {
   '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
+  '/app/settings/wallboard': typeof AppLayoutSettingsWallboardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/login': typeof LoginRoute
+  '/tv': typeof TvRoute
   '/app': typeof AppRouteWithChildren
   '/app/_layout': typeof AppLayoutRouteWithChildren
   '/app/_layout/anomalies': typeof AppLayoutAnomaliesRoute
@@ -128,11 +146,13 @@ export interface FileRoutesById {
   '/app/_layout/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/_layout/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/_layout/settings/retention': typeof AppLayoutSettingsRetentionRoute
+  '/app/_layout/settings/wallboard': typeof AppLayoutSettingsWallboardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/login'
+    | '/tv'
     | '/app'
     | '/app/anomalies'
     | '/app/insights'
@@ -143,9 +163,11 @@ export interface FileRouteTypes {
     | '/app/settings/healthcheck'
     | '/app/settings/notifications'
     | '/app/settings/retention'
+    | '/app/settings/wallboard'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/tv'
     | '/app'
     | '/app/anomalies'
     | '/app/insights'
@@ -155,9 +177,11 @@ export interface FileRouteTypes {
     | '/app/settings/healthcheck'
     | '/app/settings/notifications'
     | '/app/settings/retention'
+    | '/app/settings/wallboard'
   id:
     | '__root__'
     | '/login'
+    | '/tv'
     | '/app'
     | '/app/_layout'
     | '/app/_layout/anomalies'
@@ -169,10 +193,12 @@ export interface FileRouteTypes {
     | '/app/_layout/settings/healthcheck'
     | '/app/_layout/settings/notifications'
     | '/app/_layout/settings/retention'
+    | '/app/_layout/settings/wallboard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
+  TvRoute: typeof TvRoute
   AppRoute: typeof AppRouteWithChildren
 }
 
@@ -183,6 +209,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tv': {
+      id: '/tv'
+      path: '/tv'
+      fullPath: '/tv'
+      preLoaderRoute: typeof TvRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -234,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLayoutAnomaliesRouteImport
       parentRoute: typeof AppLayoutRoute
     }
+    '/app/_layout/settings/wallboard': {
+      id: '/app/_layout/settings/wallboard'
+      path: '/settings/wallboard'
+      fullPath: '/app/settings/wallboard'
+      preLoaderRoute: typeof AppLayoutSettingsWallboardRouteImport
+      parentRoute: typeof AppLayoutRoute
+    }
     '/app/_layout/settings/retention': {
       id: '/app/_layout/settings/retention'
       path: '/settings/retention'
@@ -275,6 +315,7 @@ interface AppLayoutRouteChildren {
   AppLayoutSettingsHealthcheckRoute: typeof AppLayoutSettingsHealthcheckRoute
   AppLayoutSettingsNotificationsRoute: typeof AppLayoutSettingsNotificationsRoute
   AppLayoutSettingsRetentionRoute: typeof AppLayoutSettingsRetentionRoute
+  AppLayoutSettingsWallboardRoute: typeof AppLayoutSettingsWallboardRoute
 }
 
 const AppLayoutRouteChildren: AppLayoutRouteChildren = {
@@ -287,6 +328,7 @@ const AppLayoutRouteChildren: AppLayoutRouteChildren = {
   AppLayoutSettingsHealthcheckRoute: AppLayoutSettingsHealthcheckRoute,
   AppLayoutSettingsNotificationsRoute: AppLayoutSettingsNotificationsRoute,
   AppLayoutSettingsRetentionRoute: AppLayoutSettingsRetentionRoute,
+  AppLayoutSettingsWallboardRoute: AppLayoutSettingsWallboardRoute,
 }
 
 const AppLayoutRouteWithChildren = AppLayoutRoute._addFileChildren(
@@ -305,6 +347,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
+  TvRoute: TvRoute,
   AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport

@@ -1,0 +1,1 @@
+ALTER TABLE wallboard_tokens ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMPTZ;
