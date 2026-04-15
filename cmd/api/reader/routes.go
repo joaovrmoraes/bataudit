@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -47,6 +48,15 @@ func registerRoutes(r *gin.Engine, conn *gorm.DB, authService *auth.Service) {
 
 	// ── Notifications ─────────────────────────────────────────────────────────
 	vapidPub := config.GetEnv("VAPID_PUBLIC_KEY", "")
+	if vapidPub == "" {
+		pub, _, err := notification.GenerateVAPIDKeys()
+		if err == nil {
+			vapidPub = pub
+			slog.Warn("VAPID_PUBLIC_KEY not set — using ephemeral key (push subscriptions will reset on restart)")
+		} else {
+			slog.Warn("VAPID_PUBLIC_KEY not set and key generation failed — push notifications unavailable", "error", err)
+		}
+	}
 	notifGroup := v1.Group("/notifications")
 	notifGroup.Use(authService.JWTMiddleware())
 	notification.NewHandler(notification.NewRepository(conn), vapidPub).RegisterRoutes(notifGroup)

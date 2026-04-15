@@ -152,6 +152,28 @@ services:
     networks:
       - bataudit
 
+  demo-reset:
+    image: ghcr.io/joaovrmoraes/bataudit/demo-reset:latest
+    pull_policy: always
+    environment:
+      - DB_DRIVER=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=batuser
+      - DB_PASSWORD=bataudit_demo_2024
+      - DB_NAME=batdb
+      - JWT_SECRET=d3m0s3cr3t4bataud1t2024xyzABCDEFGH
+      - INITIAL_OWNER_EMAIL=demo@bataudit.com
+      - INITIAL_OWNER_PASSWORD=demo123
+      - INITIAL_OWNER_NAME=Demo Admin
+      - DEMO_API_KEY=bat_demo00000000000000000000000000000000000000000000000000000000000000
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - bataudit
+
   streamer:
     image: ghcr.io/joaovrmoraes/bataudit/seed-stream:latest
     pull_policy: always

@@ -76,6 +76,8 @@ jobs:
             dockerfile: cmd/tools/seed-anomalies/Dockerfile
           - service: seed-stream
             dockerfile: cmd/tools/seed-stream/Dockerfile
+          - service: demo-reset
+            dockerfile: cmd/tools/demo-reset/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:

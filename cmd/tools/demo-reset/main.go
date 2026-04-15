@@ -1,4 +1,4 @@
-// demo-reset truncates all demo data tables and re-seeds them.
+// demo-reset truncates ALL demo tables and re-seeds from scratch.
 // Runs once at startup (after the initial seeder completes) and then
 // every day at 00:00 BRT (03:00 UTC).
 package main
@@ -59,54 +59,69 @@ func nextResetTime() time.Time {
 }
 
 func resetAndReseed(conn *gorm.DB) error {
-	// Truncate all data tables, preserving users/projects/project_members/api_keys.
+	// Truncate all tables in dependency order (children first).
+	// CASCADE handles any remaining FK references automatically.
 	tables := []string{
-		"wallboard_tokens",
+		"notification_deliveries",
+		"notification_channels",
 		"healthcheck_results",
 		"healthcheck_monitors",
-		"notification_deliveries",
+		"wallboard_tokens",
 		"audit_summaries",
 		"anomaly_rules",
 		"audits",
+		"api_keys",
+		"project_members",
+		"projects",
+		"users",
 	}
 	for _, t := range tables {
 		if err := conn.Exec("TRUNCATE TABLE " + t + " CASCADE").Error; err != nil {
 			return fmt.Errorf("truncate %s: %w", t, err)
 		}
 	}
-	slog.Info("tables truncated")
+	slog.Info("all tables truncated")
 
+	// Re-create owner, project, api key and seed data from scratch.
 	ownerEmail := config.GetEnv("INITIAL_OWNER_EMAIL", "demo@bataudit.dev")
+	ownerPassword := config.GetEnv("INITIAL_OWNER_PASSWORD", "demo")
+	ownerName := config.GetEnv("INITIAL_OWNER_NAME", "Demo User")
+
 	authRepo := auth.NewRepository(conn)
+	authSvc := auth.NewService(authRepo, config.GetEnv("JWT_SECRET", "demo-secret"))
 
-	owner, err := authRepo.GetUserByEmail(ownerEmail)
+	owner, err := authSvc.SetupOwner(ownerName, ownerEmail, ownerPassword)
 	if err != nil {
-		return fmt.Errorf("fetch demo owner: %w", err)
+		return fmt.Errorf("create demo owner: %w", err)
 	}
+	slog.Info("demo owner created", "email", ownerEmail)
 
-	project, err := authRepo.GetProjectBySlug("demo")
-	if err != nil {
-		return fmt.Errorf("fetch demo project: %w", err)
+	project := &auth.Project{
+		ID:        uuid.New().String(),
+		Name:      "Demo Project",
+		Slug:      "demo",
+		CreatedBy: owner.ID,
+		CreatedAt: time.Now(),
 	}
-	_ = owner
+	if err := authRepo.CreateProject(project); err != nil {
+		return fmt.Errorf("create demo project: %w", err)
+	}
+	slog.Info("demo project created", "id", project.ID)
 
-	// Re-seed anomaly rules (truncated above).
 	anomalyRepo := anomaly.NewRepository(conn)
 	if err := anomalyRepo.CreateDefaultRules(project.ID); err != nil {
 		slog.Warn("failed to create default anomaly rules", "error", err)
 	}
 
-	// Re-create the demo API key (truncate didn't touch api_keys, but ensure it exists).
 	ensureDemoAPIKey(authRepo, project.ID)
 
-	// Re-seed data.
 	seedAnomalies(conn, project.ID)
 	total := seedEvents(conn, project.ID)
 	slog.Info("reseed complete", "events_inserted", total, "project_id", project.ID)
 	return nil
 }
 
-// ── Seed helpers (mirrored from cmd/tools/seed) ───────────────────────────────
+// ── Seed helpers ──────────────────────────────────────────────────────────────
 
 func ensureDemoAPIKey(repo auth.Repository, projectID string) {
 	rawKey := config.GetEnv("DEMO_API_KEY", "")
@@ -115,9 +130,6 @@ func ensureDemoAPIKey(repo auth.Repository, projectID string) {
 	}
 	hash := sha256.Sum256([]byte(rawKey))
 	keyHash := hex.EncodeToString(hash[:])
-	if _, err := repo.GetAPIKeyByHash(keyHash); err == nil {
-		return
-	}
 	key := &auth.APIKey{
 		ID:        uuid.New().String(),
 		KeyHash:   keyHash,
@@ -127,7 +139,7 @@ func ensureDemoAPIKey(repo auth.Repository, projectID string) {
 		Active:    true,
 	}
 	if err := repo.CreateAPIKey(key); err != nil {
-		slog.Warn("failed to recreate demo API key", "error", err)
+		slog.Warn("failed to create demo API key", "error", err)
 	}
 }
 
