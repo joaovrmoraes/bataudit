@@ -95,6 +95,7 @@ services:
     restart: unless-stopped
     networks:
       - bataudit
+      - coolify
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
       interval: 10s
@@ -194,3 +195,5 @@ volumes:
 networks:
   bataudit:
     driver: bridge
+  coolify:
+    external: true
