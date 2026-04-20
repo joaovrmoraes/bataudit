@@ -190,9 +190,12 @@ func (r *repository) GetSessions(filters SessionFilters) ([]Session, error) {
 		where += " AND service_name = ?"
 		args = append(args, filters.ServiceName)
 	}
+	// Default to last 7 days to avoid full-table window function scans.
 	if filters.StartDate != nil {
 		where += " AND timestamp >= ?"
 		args = append(args, filters.StartDate)
+	} else {
+		where += " AND timestamp >= NOW() - INTERVAL '7 days'"
 	}
 	if filters.EndDate != nil {
 		where += " AND timestamp <= ?"
@@ -358,7 +361,10 @@ func (r *repository) GetStats(projectID, environment string) (*AuditStats, error
 	var rows []cteRow
 
 	r.db.Raw(`
-		WITH f AS (SELECT * FROM audits WHERE `+where+`)
+		WITH f AS (
+			SELECT project_id, service_name, status_code, method, response_time, timestamp
+			FROM audits WHERE `+where+`
+		)
 		SELECT 'service' AS kind,
 			service_name AS key1, '' AS key2,
 			COUNT(*) AS n,
