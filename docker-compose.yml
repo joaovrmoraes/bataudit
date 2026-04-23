@@ -1,9 +1,10 @@
 ## BatAudit — Production Docker Compose
+## Pulls pre-built images from GitHub Container Registry (ghcr.io).
 ## Usage: docker compose up -d
 ## Copy .env.example to .env and adjust the values before running.
 ## Dashboard: http://localhost:8082/app
-
-version: '3.8'
+##
+## To build from source instead: docker compose build && docker compose up -d
 
 services:
 
@@ -16,8 +17,6 @@ services:
       - POSTGRESQL_USERNAME=${DB_USER:-batuser}
       - POSTGRESQL_PASSWORD=${DB_PASSWORD:-batpassword}
       - POSTGRESQL_DATABASE=${DB_NAME:-batdb}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/bitnami/postgresql
     networks:
@@ -31,8 +30,6 @@ services:
   redis:
     image: redis:alpine
     container_name: bat_redis
-    ports:
-      - "6379:6379"
     networks:
       - bataudit-network
     healthcheck:
@@ -44,9 +41,8 @@ services:
   # ── BatAudit services ────────────────────────────────────────────────────────
 
   writer:
-    build:
-      context: .
-      dockerfile: cmd/api/writer/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/writer:latest
+    pull_policy: always
     container_name: bat_writer
     environment:
       - DB_DRIVER=postgres
@@ -75,9 +71,8 @@ services:
       start_period: 30s
 
   reader:
-    build:
-      context: .
-      dockerfile: cmd/api/reader/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/reader:latest
+    pull_policy: always
     container_name: bat_reader
     environment:
       - DB_DRIVER=postgres
@@ -110,9 +105,8 @@ services:
       start_period: 30s
 
   worker:
-    build:
-      context: .
-      dockerfile: cmd/api/worker/Dockerfile
+    image: ghcr.io/joaovrmoraes/bataudit/worker:latest
+    pull_policy: always
     container_name: bat_worker
     environment:
       - DB_DRIVER=postgres

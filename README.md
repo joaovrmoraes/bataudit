@@ -78,9 +78,14 @@ docker compose -f docker-compose.demo.yml down -v
 
 ### Full stack in Docker
 
+Images are published to GitHub Container Registry and pulled automatically — no source code or build step required. Works with Portainer and any other Docker management UI.
+
 ```bash
+cp .env.example .env   # adjust values
 docker compose up -d
 ```
+
+> To build from source instead: `docker compose build && docker compose up -d`
 
 ### Locally (backend)
 
