@@ -91,7 +91,6 @@ function CopyButton({ text }: { text: string }) {
 
 function InviteRow({ invite }: { invite: Invite }) {
   const revokeMutation = useRevokeInvite()
-  const inviteUrl = `${window.location.origin}/invite/${(invite as any)._token ?? ''}`
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-secondary/10 border border-border/30">

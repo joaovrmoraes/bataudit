@@ -37,7 +37,7 @@ function MainNav() {
   return (
     <>
       <nav className="flex-1 px-2 py-4 space-y-0.5">
-        <NavItem to="/app/" icon={LayoutDashboard} label="Dashboard" exact />
+        <NavItem to="/app" icon={LayoutDashboard} label="Dashboard" exact />
         <NavItem to="/app/sessions" icon={Activity} label="Sessions" />
         <NavItem to="/app/anomalies" icon={ShieldAlert} label="Anomalies" />
         <NavItem to="/app/insights" icon={BarChart2} label="Insights" />
@@ -59,7 +59,7 @@ function SettingsNav() {
     <>
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border shrink-0">
         <Link
-          to="/app/"
+          to="/app"
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />

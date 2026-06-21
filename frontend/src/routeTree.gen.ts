@@ -13,15 +13,18 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TvRouteImport } from './routes/tv'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as AppLayoutRouteImport } from './routes/app/_layout'
 import { Route as AppLayoutIndexRouteImport } from './routes/app/_layout/index'
+import { Route as AppLayoutSettingsRouteImport } from './routes/app/_layout/settings'
 import { Route as AppLayoutSessionsRouteImport } from './routes/app/_layout/sessions'
-import { Route as AppLayoutMembersRouteImport } from './routes/app/_layout/members'
 import { Route as AppLayoutInsightsRouteImport } from './routes/app/_layout/insights'
 import { Route as AppLayoutAnomaliesRouteImport } from './routes/app/_layout/anomalies'
 import { Route as AppLayoutSettingsWallboardRouteImport } from './routes/app/_layout/settings/wallboard'
+import { Route as AppLayoutSettingsUsersRouteImport } from './routes/app/_layout/settings/users'
 import { Route as AppLayoutSettingsRetentionRouteImport } from './routes/app/_layout/settings/retention'
 import { Route as AppLayoutSettingsNotificationsRouteImport } from './routes/app/_layout/settings/notifications'
+import { Route as AppLayoutSettingsMembersRouteImport } from './routes/app/_layout/settings/members'
 import { Route as AppLayoutSettingsHealthcheckRouteImport } from './routes/app/_layout/settings/healthcheck'
 import { Route as AppLayoutSettingsApiKeysRouteImport } from './routes/app/_layout/settings/api-keys'
 
@@ -42,6 +45,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppLayoutRoute = AppLayoutRouteImport.update({
   id: '/_layout',
   getParentRoute: () => AppRoute,
@@ -51,14 +59,14 @@ const AppLayoutIndexRoute = AppLayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppLayoutRoute,
 } as any)
+const AppLayoutSettingsRoute = AppLayoutSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppLayoutRoute,
+} as any)
 const AppLayoutSessionsRoute = AppLayoutSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
-  getParentRoute: () => AppLayoutRoute,
-} as any)
-const AppLayoutMembersRoute = AppLayoutMembersRouteImport.update({
-  id: '/members',
-  path: '/members',
   getParentRoute: () => AppLayoutRoute,
 } as any)
 const AppLayoutInsightsRoute = AppLayoutInsightsRouteImport.update({
@@ -73,62 +81,79 @@ const AppLayoutAnomaliesRoute = AppLayoutAnomaliesRouteImport.update({
 } as any)
 const AppLayoutSettingsWallboardRoute =
   AppLayoutSettingsWallboardRouteImport.update({
-    id: '/settings/wallboard',
-    path: '/settings/wallboard',
-    getParentRoute: () => AppLayoutRoute,
+    id: '/wallboard',
+    path: '/wallboard',
+    getParentRoute: () => AppLayoutSettingsRoute,
   } as any)
+const AppLayoutSettingsUsersRoute = AppLayoutSettingsUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppLayoutSettingsRoute,
+} as any)
 const AppLayoutSettingsRetentionRoute =
   AppLayoutSettingsRetentionRouteImport.update({
-    id: '/settings/retention',
-    path: '/settings/retention',
-    getParentRoute: () => AppLayoutRoute,
+    id: '/retention',
+    path: '/retention',
+    getParentRoute: () => AppLayoutSettingsRoute,
   } as any)
 const AppLayoutSettingsNotificationsRoute =
   AppLayoutSettingsNotificationsRouteImport.update({
-    id: '/settings/notifications',
-    path: '/settings/notifications',
-    getParentRoute: () => AppLayoutRoute,
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AppLayoutSettingsRoute,
+  } as any)
+const AppLayoutSettingsMembersRoute =
+  AppLayoutSettingsMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => AppLayoutSettingsRoute,
   } as any)
 const AppLayoutSettingsHealthcheckRoute =
   AppLayoutSettingsHealthcheckRouteImport.update({
-    id: '/settings/healthcheck',
-    path: '/settings/healthcheck',
-    getParentRoute: () => AppLayoutRoute,
+    id: '/healthcheck',
+    path: '/healthcheck',
+    getParentRoute: () => AppLayoutSettingsRoute,
   } as any)
 const AppLayoutSettingsApiKeysRoute =
   AppLayoutSettingsApiKeysRouteImport.update({
-    id: '/settings/api-keys',
-    path: '/settings/api-keys',
-    getParentRoute: () => AppLayoutRoute,
+    id: '/api-keys',
+    path: '/api-keys',
+    getParentRoute: () => AppLayoutSettingsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/tv': typeof TvRoute
   '/app': typeof AppLayoutRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/insights': typeof AppLayoutInsightsRoute
-  '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
+  '/app/settings': typeof AppLayoutSettingsRouteWithChildren
   '/app/': typeof AppLayoutIndexRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
+  '/app/settings/members': typeof AppLayoutSettingsMembersRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
+  '/app/settings/users': typeof AppLayoutSettingsUsersRoute
   '/app/settings/wallboard': typeof AppLayoutSettingsWallboardRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/tv': typeof TvRoute
   '/app': typeof AppLayoutIndexRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/insights': typeof AppLayoutInsightsRoute
-  '/app/members': typeof AppLayoutMembersRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
+  '/app/settings': typeof AppLayoutSettingsRouteWithChildren
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
+  '/app/settings/members': typeof AppLayoutSettingsMembersRoute
   '/app/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/settings/retention': typeof AppLayoutSettingsRetentionRoute
+  '/app/settings/users': typeof AppLayoutSettingsUsersRoute
   '/app/settings/wallboard': typeof AppLayoutSettingsWallboardRoute
 }
 export interface FileRoutesById {
@@ -137,15 +162,18 @@ export interface FileRoutesById {
   '/tv': typeof TvRoute
   '/app': typeof AppRouteWithChildren
   '/app/_layout': typeof AppLayoutRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
   '/app/_layout/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/_layout/insights': typeof AppLayoutInsightsRoute
-  '/app/_layout/members': typeof AppLayoutMembersRoute
   '/app/_layout/sessions': typeof AppLayoutSessionsRoute
+  '/app/_layout/settings': typeof AppLayoutSettingsRouteWithChildren
   '/app/_layout/': typeof AppLayoutIndexRoute
   '/app/_layout/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/_layout/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
+  '/app/_layout/settings/members': typeof AppLayoutSettingsMembersRoute
   '/app/_layout/settings/notifications': typeof AppLayoutSettingsNotificationsRoute
   '/app/_layout/settings/retention': typeof AppLayoutSettingsRetentionRoute
+  '/app/_layout/settings/users': typeof AppLayoutSettingsUsersRoute
   '/app/_layout/settings/wallboard': typeof AppLayoutSettingsWallboardRoute
 }
 export interface FileRouteTypes {
@@ -154,29 +182,35 @@ export interface FileRouteTypes {
     | '/login'
     | '/tv'
     | '/app'
+    | '/invite/$token'
     | '/app/anomalies'
     | '/app/insights'
-    | '/app/members'
     | '/app/sessions'
+    | '/app/settings'
     | '/app/'
     | '/app/settings/api-keys'
     | '/app/settings/healthcheck'
+    | '/app/settings/members'
     | '/app/settings/notifications'
     | '/app/settings/retention'
+    | '/app/settings/users'
     | '/app/settings/wallboard'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/tv'
     | '/app'
+    | '/invite/$token'
     | '/app/anomalies'
     | '/app/insights'
-    | '/app/members'
     | '/app/sessions'
+    | '/app/settings'
     | '/app/settings/api-keys'
     | '/app/settings/healthcheck'
+    | '/app/settings/members'
     | '/app/settings/notifications'
     | '/app/settings/retention'
+    | '/app/settings/users'
     | '/app/settings/wallboard'
   id:
     | '__root__'
@@ -184,15 +218,18 @@ export interface FileRouteTypes {
     | '/tv'
     | '/app'
     | '/app/_layout'
+    | '/invite/$token'
     | '/app/_layout/anomalies'
     | '/app/_layout/insights'
-    | '/app/_layout/members'
     | '/app/_layout/sessions'
+    | '/app/_layout/settings'
     | '/app/_layout/'
     | '/app/_layout/settings/api-keys'
     | '/app/_layout/settings/healthcheck'
+    | '/app/_layout/settings/members'
     | '/app/_layout/settings/notifications'
     | '/app/_layout/settings/retention'
+    | '/app/_layout/settings/users'
     | '/app/_layout/settings/wallboard'
   fileRoutesById: FileRoutesById
 }
@@ -200,6 +237,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   TvRoute: typeof TvRoute
   AppRoute: typeof AppRouteWithChildren
+  InviteTokenRoute: typeof InviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -225,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/_layout': {
       id: '/app/_layout'
       path: '/app'
@@ -239,18 +284,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLayoutIndexRouteImport
       parentRoute: typeof AppLayoutRoute
     }
+    '/app/_layout/settings': {
+      id: '/app/_layout/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppLayoutSettingsRouteImport
+      parentRoute: typeof AppLayoutRoute
+    }
     '/app/_layout/sessions': {
       id: '/app/_layout/sessions'
       path: '/sessions'
       fullPath: '/app/sessions'
       preLoaderRoute: typeof AppLayoutSessionsRouteImport
-      parentRoute: typeof AppLayoutRoute
-    }
-    '/app/_layout/members': {
-      id: '/app/_layout/members'
-      path: '/members'
-      fullPath: '/app/members'
-      preLoaderRoute: typeof AppLayoutMembersRouteImport
       parentRoute: typeof AppLayoutRoute
     }
     '/app/_layout/insights': {
@@ -269,66 +314,93 @@ declare module '@tanstack/react-router' {
     }
     '/app/_layout/settings/wallboard': {
       id: '/app/_layout/settings/wallboard'
-      path: '/settings/wallboard'
+      path: '/wallboard'
       fullPath: '/app/settings/wallboard'
       preLoaderRoute: typeof AppLayoutSettingsWallboardRouteImport
-      parentRoute: typeof AppLayoutRoute
+      parentRoute: typeof AppLayoutSettingsRoute
+    }
+    '/app/_layout/settings/users': {
+      id: '/app/_layout/settings/users'
+      path: '/users'
+      fullPath: '/app/settings/users'
+      preLoaderRoute: typeof AppLayoutSettingsUsersRouteImport
+      parentRoute: typeof AppLayoutSettingsRoute
     }
     '/app/_layout/settings/retention': {
       id: '/app/_layout/settings/retention'
-      path: '/settings/retention'
+      path: '/retention'
       fullPath: '/app/settings/retention'
       preLoaderRoute: typeof AppLayoutSettingsRetentionRouteImport
-      parentRoute: typeof AppLayoutRoute
+      parentRoute: typeof AppLayoutSettingsRoute
     }
     '/app/_layout/settings/notifications': {
       id: '/app/_layout/settings/notifications'
-      path: '/settings/notifications'
+      path: '/notifications'
       fullPath: '/app/settings/notifications'
       preLoaderRoute: typeof AppLayoutSettingsNotificationsRouteImport
-      parentRoute: typeof AppLayoutRoute
+      parentRoute: typeof AppLayoutSettingsRoute
+    }
+    '/app/_layout/settings/members': {
+      id: '/app/_layout/settings/members'
+      path: '/members'
+      fullPath: '/app/settings/members'
+      preLoaderRoute: typeof AppLayoutSettingsMembersRouteImport
+      parentRoute: typeof AppLayoutSettingsRoute
     }
     '/app/_layout/settings/healthcheck': {
       id: '/app/_layout/settings/healthcheck'
-      path: '/settings/healthcheck'
+      path: '/healthcheck'
       fullPath: '/app/settings/healthcheck'
       preLoaderRoute: typeof AppLayoutSettingsHealthcheckRouteImport
-      parentRoute: typeof AppLayoutRoute
+      parentRoute: typeof AppLayoutSettingsRoute
     }
     '/app/_layout/settings/api-keys': {
       id: '/app/_layout/settings/api-keys'
-      path: '/settings/api-keys'
+      path: '/api-keys'
       fullPath: '/app/settings/api-keys'
       preLoaderRoute: typeof AppLayoutSettingsApiKeysRouteImport
-      parentRoute: typeof AppLayoutRoute
+      parentRoute: typeof AppLayoutSettingsRoute
     }
   }
 }
 
+interface AppLayoutSettingsRouteChildren {
+  AppLayoutSettingsApiKeysRoute: typeof AppLayoutSettingsApiKeysRoute
+  AppLayoutSettingsHealthcheckRoute: typeof AppLayoutSettingsHealthcheckRoute
+  AppLayoutSettingsMembersRoute: typeof AppLayoutSettingsMembersRoute
+  AppLayoutSettingsNotificationsRoute: typeof AppLayoutSettingsNotificationsRoute
+  AppLayoutSettingsRetentionRoute: typeof AppLayoutSettingsRetentionRoute
+  AppLayoutSettingsUsersRoute: typeof AppLayoutSettingsUsersRoute
+  AppLayoutSettingsWallboardRoute: typeof AppLayoutSettingsWallboardRoute
+}
+
+const AppLayoutSettingsRouteChildren: AppLayoutSettingsRouteChildren = {
+  AppLayoutSettingsApiKeysRoute: AppLayoutSettingsApiKeysRoute,
+  AppLayoutSettingsHealthcheckRoute: AppLayoutSettingsHealthcheckRoute,
+  AppLayoutSettingsMembersRoute: AppLayoutSettingsMembersRoute,
+  AppLayoutSettingsNotificationsRoute: AppLayoutSettingsNotificationsRoute,
+  AppLayoutSettingsRetentionRoute: AppLayoutSettingsRetentionRoute,
+  AppLayoutSettingsUsersRoute: AppLayoutSettingsUsersRoute,
+  AppLayoutSettingsWallboardRoute: AppLayoutSettingsWallboardRoute,
+}
+
+const AppLayoutSettingsRouteWithChildren =
+  AppLayoutSettingsRoute._addFileChildren(AppLayoutSettingsRouteChildren)
+
 interface AppLayoutRouteChildren {
   AppLayoutAnomaliesRoute: typeof AppLayoutAnomaliesRoute
   AppLayoutInsightsRoute: typeof AppLayoutInsightsRoute
-  AppLayoutMembersRoute: typeof AppLayoutMembersRoute
   AppLayoutSessionsRoute: typeof AppLayoutSessionsRoute
+  AppLayoutSettingsRoute: typeof AppLayoutSettingsRouteWithChildren
   AppLayoutIndexRoute: typeof AppLayoutIndexRoute
-  AppLayoutSettingsApiKeysRoute: typeof AppLayoutSettingsApiKeysRoute
-  AppLayoutSettingsHealthcheckRoute: typeof AppLayoutSettingsHealthcheckRoute
-  AppLayoutSettingsNotificationsRoute: typeof AppLayoutSettingsNotificationsRoute
-  AppLayoutSettingsRetentionRoute: typeof AppLayoutSettingsRetentionRoute
-  AppLayoutSettingsWallboardRoute: typeof AppLayoutSettingsWallboardRoute
 }
 
 const AppLayoutRouteChildren: AppLayoutRouteChildren = {
   AppLayoutAnomaliesRoute: AppLayoutAnomaliesRoute,
   AppLayoutInsightsRoute: AppLayoutInsightsRoute,
-  AppLayoutMembersRoute: AppLayoutMembersRoute,
   AppLayoutSessionsRoute: AppLayoutSessionsRoute,
+  AppLayoutSettingsRoute: AppLayoutSettingsRouteWithChildren,
   AppLayoutIndexRoute: AppLayoutIndexRoute,
-  AppLayoutSettingsApiKeysRoute: AppLayoutSettingsApiKeysRoute,
-  AppLayoutSettingsHealthcheckRoute: AppLayoutSettingsHealthcheckRoute,
-  AppLayoutSettingsNotificationsRoute: AppLayoutSettingsNotificationsRoute,
-  AppLayoutSettingsRetentionRoute: AppLayoutSettingsRetentionRoute,
-  AppLayoutSettingsWallboardRoute: AppLayoutSettingsWallboardRoute,
 }
 
 const AppLayoutRouteWithChildren = AppLayoutRoute._addFileChildren(
@@ -349,6 +421,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   TvRoute: TvRoute,
   AppRoute: AppRouteWithChildren,
+  InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
