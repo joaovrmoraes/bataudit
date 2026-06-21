@@ -15,6 +15,8 @@ import (
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 var ErrOwnerAlreadyExists = errors.New("owner already exists")
+var ErrInviteInvalid = errors.New("invite not found or already used")
+var ErrInviteExpired = errors.New("invite has expired")
 
 type Claims struct {
 	UserID string   `json:"user_id"`
@@ -127,6 +129,75 @@ func (s *Service) CreateAPIKey(projectID, name string) (string, error) {
 	}
 
 	return rawKey, nil
+}
+
+// CreateMember creates a new user account (non-owner role).
+func (s *Service) CreateMember(name, email, password string, role UserRole) (*User, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &User{
+		ID:           uuid.New().String(),
+		Name:         name,
+		Email:        email,
+		PasswordHash: string(hash),
+		Role:         role,
+		CreatedAt:    time.Now(),
+	}
+
+	if err := s.repo.CreateUser(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// CreateInvite generates a new invite token for the given email and role.
+func (s *Service) CreateInvite(email string, role UserRole, createdBy string) (*Invite, string, error) {
+	raw := make([]byte, 24)
+	if _, err := rand.Read(raw); err != nil {
+		return nil, "", err
+	}
+	token := hex.EncodeToString(raw)
+
+	invite := &Invite{
+		ID:        uuid.New().String(),
+		Token:     token,
+		Email:     email,
+		Role:      role,
+		CreatedBy: createdBy,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.repo.CreateInvite(invite); err != nil {
+		return nil, "", err
+	}
+	return invite, token, nil
+}
+
+// AcceptInvite validates a token and creates the user account.
+func (s *Service) AcceptInvite(token, name, password string) (*User, error) {
+	invite, err := s.repo.GetInviteByToken(token)
+	if err != nil {
+		return nil, ErrInviteInvalid
+	}
+	if invite.UsedAt != nil {
+		return nil, ErrInviteInvalid
+	}
+	if invite.ExpiresAt.Before(time.Now()) {
+		return nil, ErrInviteExpired
+	}
+
+	user, err := s.CreateMember(name, invite.Email, password, invite.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.repo.MarkInviteUsed(token)
+	return user, nil
 }
 
 // ValidateAPIKey hashes the raw key and looks it up in the DB.

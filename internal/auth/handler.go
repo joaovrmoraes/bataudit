@@ -19,12 +19,20 @@ func NewHandler(service *Service) *Handler {
 // RegisterPublicRoutes registers unauthenticated auth endpoints.
 func (h *Handler) RegisterPublicRoutes(router *gin.RouterGroup) {
 	router.POST("/login", h.Login)
+	router.GET("/invite/:token", h.GetInvite)
+	router.POST("/invite/:token/accept", h.AcceptInvite)
 }
 
 // RegisterProtectedRoutes registers endpoints that require a valid JWT.
 func (h *Handler) RegisterProtectedRoutes(router *gin.RouterGroup) {
 	router.POST("/logout", h.Logout)
 	router.GET("/me", h.Me)
+	router.GET("/users", h.ListUsers)
+	router.POST("/users", h.CreateUser)
+	router.DELETE("/users/:id", h.DeleteUser)
+	router.GET("/invites", h.ListInvites)
+	router.POST("/invites", h.CreateInvite)
+	router.DELETE("/invites/:id", h.RevokeInvite)
 	router.GET("/projects", h.ListProjects)
 	router.POST("/projects", h.CreateProject)
 	router.GET("/projects/:id/members", h.ListMembers)
@@ -107,6 +115,255 @@ func (h *Handler) Me(c *gin.Context) {
 		"id":    userClaims.UserID,
 		"email": userClaims.Email,
 		"role":  userClaims.Role,
+	})
+}
+
+// --- Users ---
+
+// ListUsers godoc
+// @Summary      List users
+// @Description  Returns all users (owner only)
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]interface{}
+// @Failure      403  {object}  map[string]string
+// @Router       /auth/users [get]
+func (h *Handler) ListUsers(c *gin.Context) {
+	claims := c.MustGet(ContextKeyClaims).(*Claims)
+	if claims.Role != RoleOwner && claims.Role != RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or owner only"})
+		return
+	}
+
+	users, err := h.service.repo.ListUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list users"})
+		return
+	}
+
+	type safeUser struct {
+		ID        string   `json:"id"`
+		Name      string   `json:"name"`
+		Email     string   `json:"email"`
+		Role      UserRole `json:"role"`
+		CreatedAt string   `json:"created_at"`
+	}
+	result := make([]safeUser, len(users))
+	for i, u := range users {
+		result[i] = safeUser{
+			ID:        u.ID,
+			Name:      u.Name,
+			Email:     u.Email,
+			Role:      u.Role,
+			CreatedAt: u.CreatedAt.Format(time.RFC3339),
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+type createUserRequest struct {
+	Name     string   `json:"name"     binding:"required,min=1,max=100"`
+	Email    string   `json:"email"    binding:"required,email"`
+	Password string   `json:"password" binding:"required,min=8"`
+	Role     UserRole `json:"role"     binding:"required"`
+}
+
+// CreateUser godoc
+// @Summary      Create user
+// @Description  Creates a new user account (owner only)
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      createUserRequest  true  "User data"
+// @Success      201   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]string
+// @Failure      403   {object}  map[string]string
+// @Failure      409   {object}  map[string]string
+// @Router       /auth/users [post]
+func (h *Handler) CreateUser(c *gin.Context) {
+	claims := c.MustGet(ContextKeyClaims).(*Claims)
+	if claims.Role != RoleOwner && claims.Role != RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or owner only"})
+		return
+	}
+
+	var req createUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Role == RoleOwner {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot create another owner"})
+		return
+	}
+
+	user, err := h.service.CreateMember(req.Name, req.Email, req.Password, req.Role)
+	if err != nil {
+		if err == ErrEmailTaken {
+			c.JSON(http.StatusConflict, gin.H{"error": "email already in use"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
+	})
+}
+
+// DeleteUser godoc
+// @Summary      Delete user
+// @Description  Deletes a user account (owner only, cannot delete self)
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "User ID"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Router       /auth/users/{id} [delete]
+func (h *Handler) DeleteUser(c *gin.Context) {
+	claims := c.MustGet(ContextKeyClaims).(*Claims)
+	if claims.Role != RoleOwner && claims.Role != RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or owner only"})
+		return
+	}
+
+	id := c.Param("id")
+	if id == claims.UserID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete your own account"})
+		return
+	}
+
+	if err := h.service.repo.DeleteUser(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
+}
+
+// --- Invites ---
+
+type createInviteRequest struct {
+	Email string   `json:"email" binding:"required,email"`
+	Role  UserRole `json:"role"  binding:"required"`
+}
+
+func (h *Handler) ListInvites(c *gin.Context) {
+	claims := c.MustGet(ContextKeyClaims).(*Claims)
+	if claims.Role != RoleOwner && claims.Role != RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or owner only"})
+		return
+	}
+	invites, err := h.service.repo.ListPendingInvites()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list invites"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": invites})
+}
+
+func (h *Handler) CreateInvite(c *gin.Context) {
+	claims := c.MustGet(ContextKeyClaims).(*Claims)
+	if claims.Role != RoleOwner && claims.Role != RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or owner only"})
+		return
+	}
+
+	var req createInviteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.Role == RoleOwner {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot invite as owner"})
+		return
+	}
+
+	invite, token, err := h.service.CreateInvite(req.Email, req.Role, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create invite"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":         invite.ID,
+		"email":      invite.Email,
+		"role":       invite.Role,
+		"token":      token,
+		"expires_at": invite.ExpiresAt,
+	})
+}
+
+func (h *Handler) RevokeInvite(c *gin.Context) {
+	claims := c.MustGet(ContextKeyClaims).(*Claims)
+	if claims.Role != RoleOwner && claims.Role != RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin or owner only"})
+		return
+	}
+	id := c.Param("id")
+	if err := h.service.repo.DeleteInvite(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke invite"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "invite revoked"})
+}
+
+func (h *Handler) GetInvite(c *gin.Context) {
+	token := c.Param("token")
+	invite, err := h.service.repo.GetInviteByToken(token)
+	if err != nil || invite.UsedAt != nil || invite.ExpiresAt.Before(time.Now()) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "invite not found or expired"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"email":      invite.Email,
+		"role":       invite.Role,
+		"expires_at": invite.ExpiresAt,
+	})
+}
+
+type acceptInviteRequest struct {
+	Name     string `json:"name"     binding:"required,min=1,max=100"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+func (h *Handler) AcceptInvite(c *gin.Context) {
+	token := c.Param("token")
+	var req acceptInviteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := h.service.AcceptInvite(token, req.Name, req.Password)
+	if err != nil {
+		switch err {
+		case ErrInviteInvalid:
+			c.JSON(http.StatusNotFound, gin.H{"error": "invite not found or already used"})
+		case ErrInviteExpired:
+			c.JSON(http.StatusGone, gin.H{"error": "invite has expired"})
+		case ErrEmailTaken:
+			c.JSON(http.StatusConflict, gin.H{"error": "email already in use"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to accept invite"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
 	})
 }
 

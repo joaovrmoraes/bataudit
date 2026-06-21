@@ -2,6 +2,17 @@ package auth
 
 import "time"
 
+type Invite struct {
+	ID        string     `json:"id"         gorm:"primaryKey"`
+	Token     string     `json:"-"          gorm:"uniqueIndex"`
+	Email     string     `json:"email"`
+	Role      UserRole   `json:"role"`
+	CreatedBy string     `json:"created_by"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
 type UserRole string
 
 const (

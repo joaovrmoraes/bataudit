@@ -17,6 +17,8 @@ type Repository interface {
 	CreateUser(user *User) error
 	GetUserByID(id string) (*User, error)
 	GetUserByEmail(email string) (*User, error)
+	ListUsers() ([]User, error)
+	DeleteUser(id string) error
 	CountUsers() (int64, error)
 
 	// Projects
@@ -32,6 +34,13 @@ type Repository interface {
 	ListMembersByProject(projectID string) ([]ProjectMemberDetail, error)
 	UpdateProjectMemberRole(userID, projectID string, role UserRole) error
 	DeleteProjectMember(userID, projectID string) error
+
+	// Invites
+	CreateInvite(invite *Invite) error
+	GetInviteByToken(token string) (*Invite, error)
+	ListPendingInvites() ([]Invite, error)
+	DeleteInvite(id string) error
+	MarkInviteUsed(token string) error
 
 	// APIKeys
 	CreateAPIKey(key *APIKey) error
@@ -84,12 +93,54 @@ func (r *repository) GetUserByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
+func (r *repository) ListUsers() ([]User, error) {
+	var users []User
+	return users, r.db.Select("id, name, email, role, created_at").Order("created_at ASC").Find(&users).Error
+}
+
+func (r *repository) DeleteUser(id string) error {
+	return r.db.Delete(&User{}, "id = ?", id).Error
+}
+
 func (r *repository) CountUsers() (int64, error) {
 	var count int64
 	if err := r.db.Model(&User{}).Count(&count).Error; err != nil {
 		return 0, err
 	}
 	return count, nil
+}
+
+// --- Invites ---
+
+func (r *repository) CreateInvite(invite *Invite) error {
+	return r.db.Create(invite).Error
+}
+
+func (r *repository) GetInviteByToken(token string) (*Invite, error) {
+	var invite Invite
+	if err := r.db.First(&invite, "token = ?", token).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &invite, nil
+}
+
+func (r *repository) ListPendingInvites() ([]Invite, error) {
+	var invites []Invite
+	err := r.db.Where("used_at IS NULL AND expires_at > ?", time.Now()).
+		Order("created_at DESC").Find(&invites).Error
+	return invites, err
+}
+
+func (r *repository) DeleteInvite(id string) error {
+	return r.db.Delete(&Invite{}, "id = ?", id).Error
+}
+
+func (r *repository) MarkInviteUsed(token string) error {
+	now := time.Now()
+	return r.db.Model(&Invite{}).Where("token = ?", token).Update("used_at", now).Error
 }
 
 // --- Projects ---
