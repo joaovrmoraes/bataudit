@@ -106,3 +106,27 @@ jobs:
         run: pnpm run build
         env:
           VITE_API_URL: ""
+
+  # ── Docs ─────────────────────────────────────────────────────────────────────
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: docs-site
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
