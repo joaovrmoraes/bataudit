@@ -39,6 +39,9 @@ const sidebars: SidebarsConfig = {
         'concepts/data-tiering',
         'concepts/notifications',
         'concepts/healthcheck',
+        'concepts/wallboard',
+        'concepts/team-management',
+        'concepts/insights',
       ],
     },
     {

@@ -34,10 +34,14 @@ BatAudit fills the gap: a purpose-built audit log store that's easy to run, easy
 ## What it does
 
 - **Ingests** HTTP events via REST API or SDK, validates and queues them instantly
-- **Stores** events in PostgreSQL with full metadata: user, IP, method, path, status, response time, request body
+- **Stores** events in PostgreSQL with full metadata: user, IP, method, path, status, response time, request & response bodies (opt-in)
 - **Queries** events with filters: service, method, status code, identifier, date range, environment
 - **Detects** anomalies automatically: volume spikes, error rate surges, brute-force attempts, mass deletions, silent services
+- **Ranks** your data in Insights: busiest endpoints, most active users, highest error rates, slowest routes
 - **Alerts** via Web Push (VAPID) and Webhooks (Discord, Slack, PagerDuty, n8n)
+- **Displays** a live NOC-style Wallboard on a TV — read-only, single or multi-project grid
+- **Monitors** service uptime with built-in healthchecks
+- **Manages** teams with role-based access and invite links
 - **Exports** up to 100 000 events as CSV or JSON
 - **Tiers** old data into hourly and daily summaries to keep storage costs flat
 

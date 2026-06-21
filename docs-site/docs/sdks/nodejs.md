@@ -61,21 +61,27 @@ app.use(async (req, res, next) => {
 
 If `req.bataudit` is not set, `identifier` defaults to `'anonymous'`.
 
-### Capturing request bodies
+### Capturing request & response bodies
 
-Request bodies are **not captured by default** to avoid logging sensitive data accidentally. Enable it explicitly:
+Bodies are **not captured by default** to avoid logging sensitive data accidentally. Each direction is opt-in independently:
 
 ```typescript
 app.use(createExpressMiddleware({
   apiKey: 'bat_your_api_key',
   serviceName: 'my-api',
   writerUrl: 'http://localhost:8081',
-  captureBody: true, // ← opt-in
+  captureBody: true,         // ← request body
+  captureResponseBody: true, // ← response body
 }))
 ```
 
+- `captureBody` — captures the incoming request body.
+- `captureResponseBody` — captures the JSON response sent back. On Express the SDK wraps `res.json`; on Fastify it uses the `onSend` hook.
+
+In the dashboard, the response body is **hidden by default** in the event detail — click **Show** to reveal it, since it may contain sensitive data even after masking.
+
 :::warning
-BatAudit masks `password`, `secret`, `token`, and credit card patterns server-side, but review what your API accepts before enabling body capture in production.
+BatAudit masks sensitive keys server-side — `password`, `secret`, `token`, `api_key`, `access_token`, `refresh_token`, `authorization`, and credit card patterns are replaced with `********`. Still, review what your API accepts and returns before enabling body capture in production.
 :::
 
 ---
@@ -123,6 +129,7 @@ app.addHook('onRequest', async (request) => {
 | `writerUrl` | string | ✅ | — | BatAudit Writer URL |
 | `environment` | string | — | `prod` | `prod`, `staging`, `dev` |
 | `captureBody` | boolean | — | `false` | Capture request bodies |
+| `captureResponseBody` | boolean | — | `false` | Capture JSON response bodies |
 
 ---
 

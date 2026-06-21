@@ -33,9 +33,14 @@ Content-Type: application/json
   "environment": "production",
   "tenant_id": "org-456",
   "ip": "203.0.113.10",
-  "request_body": { "name": "Alice S." }
+  "request_body": { "name": "Alice S." },
+  "response_body": { "id": 42, "name": "Alice S." }
 }
 ```
+
+:::info
+`request_body` and `response_body` are optional. Sensitive keys (`password`, `token`, `api_key`, `access_token`, `refresh_token`, `authorization`, `secret`, credit card patterns) are masked with `********` server-side before storage. The SDKs only send these fields when `captureBody` / `captureResponseBody` are enabled.
+:::
 
 **Responses:**
 
@@ -108,7 +113,7 @@ Authorization: Bearer <jwt>
 
 ## GET /v1/audit/:id
 
-Get the full detail of a single event, including `request_body`, `query_params`, `path_params`, `user_agent`, and all metadata.
+Get the full detail of a single event, including `request_body`, `response_body`, `query_params`, `path_params`, `user_agent`, and all metadata. In the dashboard, `response_body` is hidden by default and revealed on click.
 
 **Auth:** JWT Bearer token required.
 
