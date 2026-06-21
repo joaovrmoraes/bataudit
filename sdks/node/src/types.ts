@@ -12,6 +12,8 @@ export interface BatAuditConfig {
   environment?: Environment
   /** Whether to capture request bodies — defaults to false */
   captureBody?: boolean
+  /** Whether to capture response bodies — defaults to false (opt-in, may contain sensitive data) */
+  captureResponseBody?: boolean
 }
 
 /** Set on req.bataudit (Express) or request.bataudit (Fastify) to attach user context */
@@ -42,6 +44,7 @@ export interface AuditEvent {
   query_params?: Record<string, unknown>
   path_params?: Record<string, unknown>
   request_body?: unknown
+  response_body?: unknown
   error_message?: string
   service_name: string
   environment: string

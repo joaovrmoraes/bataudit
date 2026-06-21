@@ -15,6 +15,7 @@ export class BatAuditClient {
     this.config = {
       environment: 'prod',
       captureBody: false,
+      captureResponseBody: false,
       ...config,
     }
   }

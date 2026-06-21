@@ -23,6 +23,7 @@ export function createExpressMiddleware(config: BatAuditConfig): RequestHandler 
   const client = new BatAuditClient(config)
   const environment = config.environment ?? 'prod'
   const captureBody = config.captureBody ?? false
+  const captureResponseBody = config.captureResponseBody ?? false
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const startTime = Date.now()
@@ -30,6 +31,15 @@ export function createExpressMiddleware(config: BatAuditConfig): RequestHandler 
     const incoming = req.headers['x-request-id']
     const requestId = typeof incoming === 'string' ? incoming : client.generateRequestId()
     res.setHeader('X-Request-ID', requestId)
+
+    let responseBody: unknown
+    if (captureResponseBody) {
+      const originalJson = res.json.bind(res)
+      res.json = (body: unknown) => {
+        responseBody = body
+        return originalJson(body)
+      }
+    }
 
     res.on('finish', () => {
       const user = req.bataudit ?? {}
@@ -51,6 +61,7 @@ export function createExpressMiddleware(config: BatAuditConfig): RequestHandler 
         query_params: Object.keys(req.query).length > 0 ? (req.query as Record<string, unknown>) : undefined,
         path_params: Object.keys(req.params).length > 0 ? req.params : undefined,
         request_body: captureBody ? req.body : undefined,
+        response_body: captureResponseBody ? responseBody : undefined,
         service_name: config.serviceName,
         environment,
         timestamp: new Date().toISOString(),

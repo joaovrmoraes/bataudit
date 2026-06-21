@@ -67,6 +67,7 @@ type Audit struct {
 	QueryParams  datatypes.JSON `json:"query_params,omitempty" gorm:"type:jsonb"`              // Query string parameters
 	PathParams   datatypes.JSON `json:"path_params,omitempty" gorm:"type:jsonb"`               // Path parameters
 	RequestBody  datatypes.JSON `json:"request_body,omitempty" gorm:"type:jsonb"`              // Request body
+	ResponseBody datatypes.JSON `json:"response_body,omitempty" gorm:"type:jsonb"`             // Response body (opt-in: captureResponseBody)
 	ErrorMessage string         `json:"error_message,omitempty" validate:"omitempty,max=1000"` // Error message (if any)
 
 	// System context

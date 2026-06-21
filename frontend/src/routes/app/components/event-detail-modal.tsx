@@ -1,5 +1,5 @@
 import React from 'react'
-import { X } from 'lucide-react'
+import { X, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuditDetail } from '@/queries/audit'
 
 interface EventDetailModalProps {
@@ -25,6 +25,38 @@ function JsonField({ label, value }: { label: string; value: unknown }) {
     <div className="space-y-1">
       <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
       <pre className="text-xs text-foreground bg-secondary/40 rounded-md p-3 overflow-x-auto">{str}</pre>
+    </div>
+  )
+}
+
+function SensitiveJsonField({ label, value }: { label: string; value: unknown }) {
+  const [revealed, setRevealed] = React.useState(false)
+  if (!value) return null
+  const str = typeof value === 'string' ? value : JSON.stringify(value, null, 2)
+  if (str === 'null' || str === '{}' || str === '[]') return null
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+        <button
+          onClick={() => setRevealed(r => !r)}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {revealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          {revealed ? 'Hide' : 'Show'}
+        </button>
+      </div>
+      {revealed ? (
+        <pre className="text-xs text-foreground bg-secondary/40 rounded-md p-3 overflow-x-auto">{str}</pre>
+      ) : (
+        <button
+          onClick={() => setRevealed(true)}
+          className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground bg-secondary/40 hover:bg-secondary/60 border border-dashed border-border/60 rounded-md py-4 transition-colors"
+        >
+          <Lock className="h-3.5 w-3.5" />
+          Hidden — click to show
+        </button>
+      )}
     </div>
   )
 }
@@ -91,6 +123,7 @@ export function EventDetailModal({ eventId, onClose }: EventDetailModalProps) {
                 <JsonField label="Query Params" value={event.query_params} />
                 <JsonField label="Path Params" value={event.path_params} />
                 <JsonField label="Request Body" value={event.request_body} />
+                <SensitiveJsonField label="Response Body" value={event.response_body} />
               </div>
             </>
           ) : (

@@ -34,6 +34,9 @@ func SanitizeAudit(audit *Audit) {
 	if len(audit.RequestBody) > 0 {
 		audit.RequestBody = sanitizeJSON(audit.RequestBody)
 	}
+	if len(audit.ResponseBody) > 0 {
+		audit.ResponseBody = sanitizeJSON(audit.ResponseBody)
+	}
 }
 
 // sanitizeString - clean and sanitize a simple string
@@ -182,7 +185,7 @@ func MaskSensitiveData(audit *Audit) {
 		passwordPattern := regexp.MustCompile(`(?i)"(password|passwd|senha|secret|pwd)"\s*:\s*"[^"]*"`)
 		dataStr = passwordPattern.ReplaceAllString(dataStr, `"$1":"********"`)
 
-		tokenPattern := regexp.MustCompile(`(?i)"(api[-_]?key|token|secret[-_]?key)"\s*:\s*"[^"]*"`)
+		tokenPattern := regexp.MustCompile(`(?i)"(api[-_]?key|token|refresh[-_]?token|access[-_]?token|secret[-_]?key|authorization)"\s*:\s*"[^"]*"`)
 		dataStr = tokenPattern.ReplaceAllString(dataStr, `"$1":"********"`)
 
 		return []byte(dataStr)
@@ -191,7 +194,9 @@ func MaskSensitiveData(audit *Audit) {
 	if len(audit.RequestBody) > 0 {
 		audit.RequestBody = maskJSON(audit.RequestBody)
 	}
-
+	if len(audit.ResponseBody) > 0 {
+		audit.ResponseBody = maskJSON(audit.ResponseBody)
+	}
 	if len(audit.QueryParams) > 0 {
 		audit.QueryParams = maskJSON(audit.QueryParams)
 	}

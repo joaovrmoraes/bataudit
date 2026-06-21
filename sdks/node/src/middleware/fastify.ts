@@ -24,6 +24,7 @@ export function applyBatAuditPlugin(fastify: FastifyInstance, config: BatAuditCo
   const client = new BatAuditClient(config)
   const environment = config.environment ?? 'prod'
   const captureBody = config.captureBody ?? false
+  const captureResponseBody = config.captureResponseBody ?? false
 
   fastify.decorateRequest('bataudit', null)
 
@@ -34,9 +35,22 @@ export function applyBatAuditPlugin(fastify: FastifyInstance, config: BatAuditCo
     reply.header('X-Request-ID', requestId)
   })
 
+  fastify.addHook('onSend', async (request, _reply, payload) => {
+    if (captureResponseBody) {
+      try {
+        (request as unknown as Record<string, unknown>)._batResponseBody =
+          typeof payload === 'string' ? JSON.parse(payload) : payload
+      } catch {
+        (request as unknown as Record<string, unknown>)._batResponseBody = payload
+      }
+    }
+    return payload
+  })
+
   fastify.addHook('onResponse', async (request, reply) => {
     const user = request.bataudit ?? {}
     const requestId = (request as unknown as Record<string, unknown>)._batRequestId as string ?? client.generateRequestId()
+    const responseBody = (request as unknown as Record<string, unknown>)._batResponseBody
     const query = (request.query ?? {}) as Record<string, unknown>
     const params = (request.params ?? {}) as Record<string, unknown>
 
@@ -57,6 +71,7 @@ export function applyBatAuditPlugin(fastify: FastifyInstance, config: BatAuditCo
       query_params: Object.keys(query).length > 0 ? query : undefined,
       path_params: Object.keys(params).length > 0 ? params : undefined,
       request_body: captureBody ? request.body : undefined,
+      response_body: captureResponseBody ? responseBody : undefined,
       service_name: config.serviceName,
       environment,
       timestamp: new Date().toISOString(),

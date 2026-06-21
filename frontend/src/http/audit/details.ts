@@ -18,6 +18,7 @@ export interface AuditDetail {
   query_params: unknown
   path_params: unknown
   request_body: unknown
+  response_body: unknown
   error_message: string
   service_name: string
   environment: string
