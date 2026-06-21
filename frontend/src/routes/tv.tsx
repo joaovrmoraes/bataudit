@@ -2,7 +2,7 @@ import React from 'react'
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { XAxis, YAxis, ResponsiveContainer, AreaChart, Area, ReferenceLine } from 'recharts'
-import { ShieldAlert, HeartPulse, AlertTriangle, Activity, Wifi, WifiOff } from 'lucide-react'
+import { ShieldAlert, HeartPulse, AlertTriangle, Activity, Wifi, WifiOff, LayoutDashboard, LayoutGrid } from 'lucide-react'
 import {
   activate,
   clearWbTokens,
@@ -17,6 +17,7 @@ import {
   useWbAlerts,
   useWbErrorRoutes,
   useWbProjects,
+  useWbGrid,
 } from '@/queries/wallboard'
 
 const searchSchema = z.object({
@@ -165,16 +166,104 @@ function HealthCarousel({ entries }: { entries: { name: string; last_status: str
   )
 }
 
+// ── Project Grid (multi-project view) ───────────────────────────────────────────
+
+function ProjectGridCard({ stat, onSelect }: {
+  stat: { project_id: string; project_name: string; events_today: number; errors_4xx: number; errors_5xx: number; avg_response_ms: number; down_monitors: number }
+  onSelect: (id: string) => void
+}) {
+  const hasErrors = stat.errors_5xx > 0
+  const hasWarn = stat.errors_4xx > 0
+  const hasDown = stat.down_monitors > 0
+  const accent = hasDown || hasErrors ? 'border-[#f87171]/50' : hasWarn ? 'border-[#fb923c]/40' : 'border-slate-700/50'
+
+  return (
+    <button
+      onClick={() => onSelect(stat.project_id)}
+      className={`text-left rounded-xl bg-slate-800/60 border ${accent} p-4 flex flex-col gap-3 hover:bg-slate-800 transition-colors`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-white truncate">{stat.project_name}</span>
+        {hasDown ? (
+          <span className="flex items-center gap-1 text-[#f87171] text-xs font-semibold shrink-0">
+            <WifiOff className="h-3 w-3" /> {stat.down_monitors}
+          </span>
+        ) : (
+          <span className="h-2 w-2 rounded-full bg-[#4ade80] shrink-0" />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">Events</p>
+          <p className="text-xl font-bold tabular-nums text-white">{stat.events_today.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">Avg</p>
+          <p className="text-xl font-bold tabular-nums text-[#818cf8]">{Math.round(stat.avg_response_ms)}ms</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">4xx</p>
+          <p className={`text-lg font-bold tabular-nums ${hasWarn ? 'text-[#fb923c]' : 'text-slate-400'}`}>{stat.errors_4xx}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">5xx</p>
+          <p className={`text-lg font-bold tabular-nums ${hasErrors ? 'text-[#f87171]' : 'text-slate-400'}`}>{stat.errors_5xx}</p>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function ProjectGrid({ environment, onSelect }: { environment?: string; onSelect: (id: string) => void }) {
+  const grid = useWbGrid(environment)
+  const stats = grid.data ?? []
+
+  if (stats.length === 0) {
+    return (
+      <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 160px)' }}>
+        <p className="text-slate-500 text-sm">No projects yet</p>
+      </div>
+    )
+  }
+
+  // Adaptive columns: keep cards readable up to ~4 per row
+  const cols = stats.length <= 2 ? stats.length : stats.length <= 9 ? 3 : 4
+
+  return (
+    <div
+      className="grid gap-3 overflow-y-auto"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, height: 'calc(100vh - 160px)' }}
+    >
+      {stats.map(s => (
+        <ProjectGridCard key={s.project_id} stat={s} onSelect={onSelect} />
+      ))}
+    </div>
+  )
+}
+
 // ── TV Dashboard ──────────────────────────────────────────────────────────────
 
+const ENVIRONMENTS = ['', 'production', 'staging', 'development', 'testing', 'local'] as const
+
 function TVDashboard({ projectId, onProjectChange, profileName }: { projectId: string; onProjectChange: (id: string) => void; profileName: string }) {
-  const { data: summary } = useWbSummary(projectId || undefined)
-  const feed = useWbFeed(projectId || undefined)
-  const volume = useWbVolume(projectId || undefined)
-  const health = useWbHealth(projectId || undefined)
-  const alerts = useWbAlerts(projectId || undefined)
-  const errorRoutes = useWbErrorRoutes(projectId || undefined)
+  const [environment, setEnvironment] = React.useState<string>('')
+  const [viewMode, setViewMode] = React.useState<'dashboard' | 'grid'>('dashboard')
+  const env = environment || undefined
+  const isGrid = viewMode === 'grid'
+  const dashEnabled = !isGrid
+  const { data: summary } = useWbSummary(projectId || undefined, env, dashEnabled)
+  const feed = useWbFeed(projectId || undefined, env, dashEnabled)
+  const volume = useWbVolume(projectId || undefined, env, dashEnabled)
+  const health = useWbHealth(projectId || undefined, dashEnabled)
+  const alerts = useWbAlerts(projectId || undefined, env, dashEnabled)
+  const errorRoutes = useWbErrorRoutes(projectId || undefined, env, dashEnabled)
   const projects = useWbProjects()
+
+  function handleGridSelect(id: string) {
+    onProjectChange(id)
+    setViewMode('dashboard')
+  }
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const [clock, setClock] = React.useState(now)
@@ -199,7 +288,7 @@ function TVDashboard({ projectId, onProjectChange, profileName }: { projectId: s
           {profileName && (
             <span className="text-xs bg-[#818cf8]/20 text-[#818cf8] rounded px-2 py-0.5 font-medium">{profileName}</span>
           )}
-          {selectedProject && (
+          {!isGrid && selectedProject && (
             <span className="text-xs bg-slate-700 rounded px-2 py-0.5 text-slate-300">{selectedProject.name}</span>
           )}
         </div>
@@ -214,20 +303,51 @@ function TVDashboard({ projectId, onProjectChange, profileName }: { projectId: s
               <AlertTriangle className="h-3.5 w-3.5" /> {activeAlerts} ALERT{activeAlerts > 1 ? 'S' : ''}
             </span>
           )}
+          {/* View toggle */}
+          <div className="flex items-center bg-slate-800 border border-slate-600 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('dashboard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors ${viewMode === 'dashboard' ? 'bg-[#818cf8] text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors ${viewMode === 'grid' ? 'bg-[#818cf8] text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Grid
+            </button>
+          </div>
           <select
-            value={projectId}
-            onChange={e => onProjectChange(e.target.value)}
+            value={environment}
+            onChange={e => setEnvironment(e.target.value)}
             className="bg-slate-800 border border-slate-600 text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#818cf8]"
           >
-            <option value="">All projects</option>
-            {(projects.data ?? []).map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            <option value="">All environments</option>
+            {ENVIRONMENTS.filter(e => e).map(e => (
+              <option key={e} value={e}>{e}</option>
             ))}
           </select>
+          {!isGrid && (
+            <select
+              value={projectId}
+              onChange={e => onProjectChange(e.target.value)}
+              className="bg-slate-800 border border-slate-600 text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#818cf8]"
+            >
+              <option value="">All projects</option>
+              {(projects.data ?? []).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
           <span className="text-slate-400 text-sm font-mono">{clock}</span>
         </div>
       </div>
 
+      {isGrid && <ProjectGrid environment={env} onSelect={handleGridSelect} />}
+
+      {!isGrid && (
+      <>
       {/* Stats row */}
       <div className="grid grid-cols-5 gap-3">
         <StatCard label="Events today" value={summary?.events_today ?? '—'} color="text-white" />
@@ -383,6 +503,8 @@ function TVDashboard({ projectId, onProjectChange, profileName }: { projectId: s
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

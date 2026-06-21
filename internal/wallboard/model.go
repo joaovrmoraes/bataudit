@@ -51,6 +51,17 @@ type Project struct {
 	Name string `json:"name" gorm:"column:name"`
 }
 
+// ProjectStat is a compact per-project summary for the multi-project grid view.
+type ProjectStat struct {
+	ProjectID     string  `json:"project_id"      gorm:"column:project_id"`
+	ProjectName   string  `json:"project_name"    gorm:"column:project_name"`
+	EventsToday   int64   `json:"events_today"    gorm:"column:events_today"`
+	Errors4xx     int64   `json:"errors_4xx"      gorm:"column:errors_4xx"`
+	Errors5xx     int64   `json:"errors_5xx"      gorm:"column:errors_5xx"`
+	AvgResponseMs float64 `json:"avg_response_ms" gorm:"column:avg_response_ms"`
+	DownMonitors  int64   `json:"down_monitors"   gorm:"column:down_monitors"`
+}
+
 type AlertEntry struct {
 	RuleType    string `json:"rule_type"    gorm:"column:rule_type"`
 	ServiceName string `json:"service_name" gorm:"column:service_name"`

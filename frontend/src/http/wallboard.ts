@@ -58,7 +58,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   return data.access_token
 }
 
-async function wbFetch(path: string, projectId?: string): Promise<Response> {
+async function wbFetch(path: string, projectId?: string, environment?: string): Promise<Response> {
   let { access } = getWbTokens()
   const { expiresAt } = getWbTokens()
 
@@ -68,7 +68,10 @@ async function wbFetch(path: string, projectId?: string): Promise<Response> {
     if (!access) throw new Error('unauthenticated')
   }
 
-  const qs = projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''
+  const params = new URLSearchParams()
+  if (projectId) params.set('project_id', projectId)
+  if (environment) params.set('environment', environment)
+  const qs = params.toString() ? `?${params.toString()}` : ''
   return fetch(`${BASE}${path}${qs}`, {
     headers: { Authorization: `Bearer ${access}` },
   })
@@ -125,20 +128,30 @@ export interface WbErrorRoute {
   error_rate: number
 }
 
-export async function getWbSummary(projectId?: string): Promise<WbSummary> {
-  const res = await wbFetch('/v1/wallboard/summary', projectId)
+export interface WbProjectStat {
+  project_id: string
+  project_name: string
+  events_today: number
+  errors_4xx: number
+  errors_5xx: number
+  avg_response_ms: number
+  down_monitors: number
+}
+
+export async function getWbSummary(projectId?: string, environment?: string): Promise<WbSummary> {
+  const res = await wbFetch('/v1/wallboard/summary', projectId, environment)
   if (!res.ok) throw new Error('Failed to fetch summary')
   return res.json()
 }
 
-export async function getWbFeed(projectId?: string): Promise<{ data: WbFeedEvent[] }> {
-  const res = await wbFetch('/v1/wallboard/feed', projectId)
+export async function getWbFeed(projectId?: string, environment?: string): Promise<{ data: WbFeedEvent[] }> {
+  const res = await wbFetch('/v1/wallboard/feed', projectId, environment)
   if (!res.ok) throw new Error('Failed to fetch feed')
   return res.json()
 }
 
-export async function getWbVolume(projectId?: string): Promise<{ data: WbVolumePoint[] }> {
-  const res = await wbFetch('/v1/wallboard/volume', projectId)
+export async function getWbVolume(projectId?: string, environment?: string): Promise<{ data: WbVolumePoint[] }> {
+  const res = await wbFetch('/v1/wallboard/volume', projectId, environment)
   if (!res.ok) throw new Error('Failed to fetch volume')
   return res.json()
 }
@@ -149,14 +162,14 @@ export async function getWbHealth(projectId?: string): Promise<{ data: WbHealthE
   return res.json()
 }
 
-export async function getWbAlerts(projectId?: string): Promise<{ data: WbAlert[] }> {
-  const res = await wbFetch('/v1/wallboard/alerts', projectId)
+export async function getWbAlerts(projectId?: string, environment?: string): Promise<{ data: WbAlert[] }> {
+  const res = await wbFetch('/v1/wallboard/alerts', projectId, environment)
   if (!res.ok) throw new Error('Failed to fetch alerts')
   return res.json()
 }
 
-export async function getWbErrorRoutes(projectId?: string): Promise<{ data: WbErrorRoute[] }> {
-  const res = await wbFetch('/v1/wallboard/error-routes', projectId)
+export async function getWbErrorRoutes(projectId?: string, environment?: string): Promise<{ data: WbErrorRoute[] }> {
+  const res = await wbFetch('/v1/wallboard/error-routes', projectId, environment)
   if (!res.ok) throw new Error('Failed to fetch error routes')
   return res.json()
 }
@@ -164,6 +177,12 @@ export async function getWbErrorRoutes(projectId?: string): Promise<{ data: WbEr
 export async function getWbProjects(): Promise<{ data: WbProject[] }> {
   const res = await wbFetch('/v1/wallboard/projects')
   if (!res.ok) throw new Error('Failed to fetch projects')
+  return res.json()
+}
+
+export async function getWbGrid(environment?: string): Promise<{ data: WbProjectStat[] }> {
+  const res = await wbFetch('/v1/wallboard/grid', undefined, environment)
+  if (!res.ok) throw new Error('Failed to fetch grid')
   return res.json()
 }
 

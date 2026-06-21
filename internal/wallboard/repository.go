@@ -22,13 +22,14 @@ type Repository interface {
 	TouchLastUsed(id string) error
 	DeleteByID(id string) error
 
-	GetSummary(projectID string) (*Summary, error)
-	GetFeed(projectID string, limit int) ([]FeedEvent, error)
-	GetVolume(projectID string) ([]VolumePoint, error)
+	GetSummary(projectID, environment string) (*Summary, error)
+	GetFeed(projectID, environment string, limit int) ([]FeedEvent, error)
+	GetVolume(projectID, environment string) ([]VolumePoint, error)
 	GetHealth(projectID string) ([]HealthEntry, error)
-	GetAlerts(projectID string) ([]AlertEntry, error)
-	GetErrorRoutes(projectID string) ([]ErrorRoute, error)
+	GetAlerts(projectID, environment string) ([]AlertEntry, error)
+	GetErrorRoutes(projectID, environment string) ([]ErrorRoute, error)
 	GetProjects() ([]Project, error)
+	GetProjectStats(environment string) ([]ProjectStat, error)
 }
 
 type repository struct {
@@ -128,9 +129,16 @@ func projectFilter(db *gorm.DB, projectID string) *gorm.DB {
 	return db
 }
 
-func (r *repository) GetSummary(projectID string) (*Summary, error) {
+func envFilter(db *gorm.DB, environment string) *gorm.DB {
+	if environment != "" {
+		return db.Where("environment = ?", environment)
+	}
+	return db
+}
+
+func (r *repository) GetSummary(projectID, environment string) (*Summary, error) {
 	var s Summary
-	q := projectFilter(r.db.Table("audits"), projectID).
+	q := envFilter(projectFilter(r.db.Table("audits"), projectID), environment).
 		Where("timestamp >= NOW() - INTERVAL '24 hours'").
 		Select(`
 			COUNT(*) AS events_today,
@@ -145,12 +153,12 @@ func (r *repository) GetSummary(projectID string) (*Summary, error) {
 	return &s, nil
 }
 
-func (r *repository) GetFeed(projectID string, limit int) ([]FeedEvent, error) {
+func (r *repository) GetFeed(projectID, environment string, limit int) ([]FeedEvent, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
 	var events []FeedEvent
-	q := projectFilter(r.db.Table("audits"), projectID).
+	q := envFilter(projectFilter(r.db.Table("audits"), projectID), environment).
 		Where("event_type != 'system.alert' OR event_type IS NULL").
 		Select(`method, path, status_code, response_time AS response_ms, service_name, TO_CHAR(timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS timestamp`).
 		Order("timestamp DESC").
@@ -161,9 +169,9 @@ func (r *repository) GetFeed(projectID string, limit int) ([]FeedEvent, error) {
 	return events, nil
 }
 
-func (r *repository) GetVolume(projectID string) ([]VolumePoint, error) {
+func (r *repository) GetVolume(projectID, environment string) ([]VolumePoint, error) {
 	var points []VolumePoint
-	q := projectFilter(r.db.Table("audits"), projectID).
+	q := envFilter(projectFilter(r.db.Table("audits"), projectID), environment).
 		Where("timestamp >= NOW() - INTERVAL '2 hours'").
 		Select(`TO_CHAR((DATE_TRUNC('minute', timestamp) - (EXTRACT(MINUTE FROM timestamp)::int % 5) * INTERVAL '1 minute') AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS bucket, COUNT(*) AS count`).
 		Group("bucket").
@@ -213,9 +221,9 @@ func (r *repository) GetHealth(projectID string) ([]HealthEntry, error) {
 	return entries, nil
 }
 
-func (r *repository) GetAlerts(projectID string) ([]AlertEntry, error) {
+func (r *repository) GetAlerts(projectID, environment string) ([]AlertEntry, error) {
 	var alerts []AlertEntry
-	q := projectFilter(r.db.Table("audits"), projectID).
+	q := envFilter(projectFilter(r.db.Table("audits"), projectID), environment).
 		Where("event_type = 'system.alert'").
 		Where("timestamp >= NOW() - INTERVAL '30 minutes'").
 		Select(`path AS rule_type, service_name, environment, TO_CHAR(timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS timestamp`).
@@ -235,9 +243,43 @@ func (r *repository) GetProjects() ([]Project, error) {
 	return projects, nil
 }
 
-func (r *repository) GetErrorRoutes(projectID string) ([]ErrorRoute, error) {
+func (r *repository) GetProjectStats(environment string) ([]ProjectStat, error) {
+	query := `
+		SELECT
+			p.id AS project_id,
+			p.name AS project_name,
+			COUNT(a.timestamp) AS events_today,
+			COUNT(CASE WHEN a.status_code >= 400 AND a.status_code < 500 THEN 1 END) AS errors_4xx,
+			COUNT(CASE WHEN a.status_code >= 500 THEN 1 END) AS errors_5xx,
+			COALESCE(AVG(a.response_time), 0) AS avg_response_ms,
+			COALESCE((
+				SELECT COUNT(*) FROM healthcheck_monitors m
+				WHERE m.project_id = p.id AND m.enabled = true AND m.last_status = 'DOWN'
+			), 0) AS down_monitors
+		FROM projects p
+		LEFT JOIN audits a ON a.project_id = p.id
+			AND a.timestamp >= NOW() - INTERVAL '24 hours'
+			AND (a.event_type != 'system.alert' OR a.event_type IS NULL)`
+
+	args := []interface{}{}
+	if environment != "" {
+		query += " AND a.environment = ?"
+		args = append(args, environment)
+	}
+	query += `
+		GROUP BY p.id, p.name
+		ORDER BY p.name ASC`
+
+	var stats []ProjectStat
+	if err := r.db.Raw(query, args...).Scan(&stats).Error; err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
+func (r *repository) GetErrorRoutes(projectID, environment string) ([]ErrorRoute, error) {
 	var routes []ErrorRoute
-	q := projectFilter(r.db.Table("audits"), projectID).
+	q := envFilter(projectFilter(r.db.Table("audits"), projectID), environment).
 		Where("timestamp >= NOW() - INTERVAL '1 hour'").
 		Select(`path, method, COUNT(CASE WHEN status_code >= 400 THEN 1 END) AS error_count, COUNT(*) AS total`).
 		Group("path, method").

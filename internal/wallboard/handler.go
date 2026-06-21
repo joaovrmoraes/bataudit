@@ -44,6 +44,7 @@ func (h *Handler) RegisterDataRoutes(r *gin.RouterGroup) {
 	r.GET("/alerts", h.Alerts)
 	r.GET("/error-routes", h.ErrorRoutes)
 	r.GET("/projects", h.Projects)
+	r.GET("/grid", h.Grid)
 }
 
 // RegisterManagementRoutes — generate/revoke code (protected by regular JWT)
@@ -250,7 +251,7 @@ func projectFromCtx(c *gin.Context) string {
 }
 
 func (h *Handler) Summary(c *gin.Context) {
-	s, err := h.repo.GetSummary(projectFromCtx(c))
+	s, err := h.repo.GetSummary(projectFromCtx(c), c.Query("environment"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch summary"})
 		return
@@ -259,7 +260,7 @@ func (h *Handler) Summary(c *gin.Context) {
 }
 
 func (h *Handler) Feed(c *gin.Context) {
-	events, err := h.repo.GetFeed(projectFromCtx(c), 20)
+	events, err := h.repo.GetFeed(projectFromCtx(c), c.Query("environment"), 20)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch feed"})
 		return
@@ -268,7 +269,7 @@ func (h *Handler) Feed(c *gin.Context) {
 }
 
 func (h *Handler) Volume(c *gin.Context) {
-	points, err := h.repo.GetVolume(projectFromCtx(c))
+	points, err := h.repo.GetVolume(projectFromCtx(c), c.Query("environment"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch volume"})
 		return
@@ -286,7 +287,7 @@ func (h *Handler) Health(c *gin.Context) {
 }
 
 func (h *Handler) Alerts(c *gin.Context) {
-	alerts, err := h.repo.GetAlerts(projectFromCtx(c))
+	alerts, err := h.repo.GetAlerts(projectFromCtx(c), c.Query("environment"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch alerts"})
 		return
@@ -295,7 +296,7 @@ func (h *Handler) Alerts(c *gin.Context) {
 }
 
 func (h *Handler) ErrorRoutes(c *gin.Context) {
-	routes, err := h.repo.GetErrorRoutes(projectFromCtx(c))
+	routes, err := h.repo.GetErrorRoutes(projectFromCtx(c), c.Query("environment"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch error routes"})
 		return
@@ -310,6 +311,15 @@ func (h *Handler) Projects(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": projects})
+}
+
+func (h *Handler) Grid(c *gin.Context) {
+	stats, err := h.repo.GetProjectStats(c.Query("environment"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch project stats"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
