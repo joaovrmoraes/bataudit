@@ -9,7 +9,7 @@ import { useProject } from '@/lib/project-context'
 import { useMembers, useAddMember, useRemoveMember, useUpdateMemberRole } from '@/queries/members'
 import type { Member } from '@/http/members/index'
 
-export const Route = createFileRoute('/app/_layout/members')({
+export const Route = createFileRoute('/app/_layout/settings/members')({
   component: MembersPage,
 })
 

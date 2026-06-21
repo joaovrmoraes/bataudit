@@ -1,5 +1,5 @@
 import { LogOut, ChevronDown } from 'lucide-react'
-import { useRouter } from '@tanstack/react-router'
+import { useRouter, useRouterState } from '@tanstack/react-router'
 import { Button } from './ui/button'
 import { getUser, clearAuth } from '@/lib/auth'
 import { useLogout } from '@/queries/auth'
@@ -26,6 +26,14 @@ export function Header() {
   const { selectedEnvironment, setSelectedEnvironment } = useEnvironment()
   const [projectOpen, setProjectOpen] = React.useState(false)
   const [envOpen, setEnvOpen] = React.useState(false)
+  const pathname = useRouterState({ select: s => s.location.pathname })
+
+  // Env filter: only on data views, never in settings.
+  const inSettings = pathname.startsWith('/app/settings')
+  // Project filter: hidden in settings that are global or manage all projects themselves.
+  const globalSettings = ['/app/settings/users', '/app/settings/retention', '/app/settings/api-keys']
+  const showEnvFilter = !inSettings
+  const showProjectFilter = !globalSettings.some(p => pathname.startsWith(p))
 
   const isOwner = user?.role === 'owner'
   const selectedProject = projects.find(p => p.id === selectedProjectId)
@@ -50,6 +58,7 @@ export function Header() {
       {/* Left: selectors */}
       <div className="flex items-center gap-2">
         {/* Project selector */}
+        {showProjectFilter && (
         <div className="relative">
           <Button
             variant="outline"
@@ -83,8 +92,10 @@ export function Header() {
             </div>
           )}
         </div>
+        )}
 
         {/* Environment selector */}
+        {showEnvFilter && (
         <div className="relative">
           <Button
             variant="outline"
@@ -116,6 +127,7 @@ export function Header() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Right side */}
