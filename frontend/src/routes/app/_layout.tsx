@@ -16,9 +16,9 @@ function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
         <Header />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto overscroll-none">
           <Outlet />
         </main>
       </div>

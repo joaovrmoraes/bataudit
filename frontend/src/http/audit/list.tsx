@@ -38,6 +38,7 @@ interface ListAuditParams {
   method?: string
   path?: string
   status_code?: string
+  status_class?: string
   environment?: string
   identifier?: string
   start_date?: string
@@ -58,6 +59,7 @@ export async function ListAudit(
   if (params?.method) search.set('method', params.method)
   if (params?.path) search.set('path', params.path)
   if (params?.status_code) search.set('status_code', params.status_code)
+  if (params?.status_class) search.set('status_class', params.status_class)
   if (params?.environment) search.set('environment', params.environment)
   if (params?.identifier) search.set('identifier', params.identifier)
   if (params?.start_date) search.set('start_date', params.start_date)

@@ -18,6 +18,7 @@ import { useEnvironment } from '@/lib/environment-context'
 import { getToken } from '@/lib/auth'
 import { AppPagination } from '@/components/app-pagination'
 import { EventDetailModal } from '../components/event-detail-modal'
+import { TimeRangePicker } from '@/components/time-range-picker'
 
 // --- Route search params (filtros persistidos na URL) ---
 const searchSchema = z.object({
@@ -26,7 +27,9 @@ const searchSchema = z.object({
   method: z.string().optional(),
   path: z.string().optional(),
   status_code: z.string().optional(),
+  status_class: z.enum(['2xx', '3xx', '4xx', '5xx']).optional(),
   identifier: z.string().optional(),
+  time_range: z.enum(['5m', '15m', '30m', '1h', '3h', '6h', '12h', '24h', '3d', '7d', '30d', 'custom']).optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   sort_by: z.enum(['timestamp', 'status_code', 'response_time']).optional(),
@@ -78,6 +81,7 @@ function timeAgo(ts: string) {
   return new Date(ts).toLocaleDateString()
 }
 
+
 // --- Main component ---
 function RouteComponent() {
   const navigate = useNavigate()
@@ -108,10 +112,12 @@ function RouteComponent() {
     method: search.method,
     path: search.path,
     status_code: search.status_code,
+    status_class: search.status_class,
     environment: selectedEnvironment ?? undefined,
     identifier: search.identifier,
-    start_date: search.start_date,
-    end_date: search.end_date,
+    time_range: search.time_range,
+    start_date: search.time_range && search.time_range !== 'custom' ? undefined : search.start_date,
+    end_date: search.time_range && search.time_range !== 'custom' ? undefined : search.end_date,
     sort_by: search.sort_by,
     sort_order: search.sort_order,
   }
@@ -191,7 +197,7 @@ function RouteComponent() {
     navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, sort_by: col, sort_order: newDir, page: 1 }) })
   }
 
-  const hasFilters = Object.values(activeFilters).some(Boolean)
+  const hasFilters = !!(search.time_range || search.service_name || search.method || search.path || search.status_code || search.status_class || search.identifier || search.start_date || search.end_date)
   const totalPages = auditList?.pagination.totalPage ?? 1
 
   // Sorted breakdown table
@@ -234,6 +240,7 @@ function RouteComponent() {
     : []
   const timelineData = (stats?.timeline ?? []).map(p => ({
     hour: new Date(p.hour).getHours() + 'h',
+    rawHour: new Date(p.hour).getTime(),
     count: p.count,
   }))
 
@@ -435,9 +442,17 @@ function RouteComponent() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Area chart — timeline */}
         <Card className="p-4 border-border/50 bg-card/60 space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Events / hour (last 24h)</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Events / hour (last 24h) <span className="normal-case text-[10px]">(click to filter)</span></p>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={timelineData}>
+            <AreaChart data={timelineData} style={{ cursor: 'pointer' }} onClick={(chart: any) => {
+              if (!chart?.activePayload?.[0]) return
+              const rawHour = (chart.activePayload[0].payload as { rawHour?: number }).rawHour
+              if (rawHour == null) return
+              const start = new Date(rawHour)
+              const end = new Date(rawHour + 60 * 60 * 1000)
+              navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, time_range: 'custom', start_date: start.toISOString(), end_date: end.toISOString(), page: 1 }) })
+              document.getElementById('events')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}>
               <defs>
                 <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3} />
@@ -479,16 +494,20 @@ function RouteComponent() {
         </Card>
 
         {/* Bar chart — status classes (separate bars) */}
-        <Card className="p-4 border-border/50 bg-card/60 space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Status distribution</p>
+        <Card className="p-4 border-border/50 bg-card/60 space-y-2 [&_.recharts-rectangle]:outline-none [&_.recharts-rectangle]:focus-visible:outline-none">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Status distribution <span className="normal-case text-[10px]">(click to filter)</span></p>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={statusData} barCategoryGap="30%">
+            <BarChart data={statusData} barCategoryGap="30%" style={{ cursor: 'pointer' }}>
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} width={35} />
               <Tooltip contentStyle={{ background: '#1e2130', border: '1px solid #2d3350', fontSize: 12 }} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} onClick={(data) => {
+                const cls = data.name as '2xx' | '3xx' | '4xx' | '5xx'
+                navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, status_class: search.status_class === cls ? undefined : cls, status_code: undefined, page: 1 }) })
+                document.getElementById('events')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}>
                 {statusData.map(s => (
-                  <Cell key={s.name} fill={s.color} />
+                  <Cell key={s.name} fill={s.color} opacity={!search.status_class || search.status_class === s.name ? 1 : 0.35} />
                 ))}
               </Bar>
             </BarChart>
@@ -504,16 +523,20 @@ function RouteComponent() {
         </Card>
 
         {/* Methods bar chart */}
-        <Card className="p-4 border-border/50 bg-card/60 space-y-2">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Methods</p>
+        <Card className="p-4 border-border/50 bg-card/60 space-y-2 [&_.recharts-rectangle]:outline-none [&_.recharts-rectangle]:focus-visible:outline-none">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Methods <span className="normal-case text-[10px]">(click to filter)</span></p>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={methodData.filter(e => e.name)} barCategoryGap="30%">
+            <BarChart data={methodData.filter(e => e.name)} barCategoryGap="30%" style={{ cursor: 'pointer' }}>
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} width={35} />
               <Tooltip contentStyle={{ background: '#1e2130', border: '1px solid #2d3350', fontSize: 12 }} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} onClick={(data) => {
+                const m = data.name as string
+                navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, method: search.method === m ? undefined : m, page: 1 }) })
+                document.getElementById('events')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}>
                 {methodData.filter(e => e.name).map(entry => (
-                  <Cell key={entry.name} fill={METHOD_COLORS[entry.name] ?? '#64748b'} />
+                  <Cell key={entry.name} fill={METHOD_COLORS[entry.name] ?? '#64748b'} opacity={!search.method || search.method === entry.name ? 1 : 0.35} />
                 ))}
               </Bar>
             </BarChart>
@@ -523,19 +546,27 @@ function RouteComponent() {
 
       {/* Event feed — full width */}
       <div id="events" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-foreground">Event Feed</p>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-foreground shrink-0">Event Feed</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <TimeRangePicker
+                timeRange={search.time_range}
+                startDate={search.start_date}
+                endDate={search.end_date}
+                onRelative={(range) => navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, time_range: range, start_date: undefined, end_date: undefined, page: 1 }) })}
+                onAbsolute={(start, end) => navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, time_range: 'custom', start_date: start, end_date: end || undefined, page: 1 }) })}
+                onClear={() => navigate({ from: Route.fullPath, search: (prev) => ({ ...prev, time_range: undefined, start_date: undefined, end_date: undefined, page: 1 }) })}
+              />
               {hasFilters && (
-                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground h-8" onClick={clearFilters}>
                   <X className="h-3 w-3" />
-                  Clear filters
+                  Clear
                 </Button>
               )}
               <Button
                 variant={filterOpen ? 'secondary' : 'outline'}
                 size="sm"
-                className="gap-2"
+                className="gap-2 h-8"
                 onClick={() => setFilterOpen(v => !v)}
               >
                 <Filter className="h-3.5 w-3.5" />
@@ -543,7 +574,7 @@ function RouteComponent() {
                 {hasFilters && <span className="h-1.5 w-1.5 rounded-full bg-[#818cf8]" />}
               </Button>
               <div className="relative">
-                <Button variant="outline" size="sm" className="gap-2" disabled={exporting} onClick={() => setExportOpen(v => !v)}>
+                <Button variant="outline" size="sm" className="gap-2 h-8" disabled={exporting} onClick={() => setExportOpen(v => !v)}>
                   <Download className="h-3.5 w-3.5" />
                   {exporting ? 'Exporting…' : 'Export'}
                 </Button>
@@ -597,29 +628,19 @@ function RouteComponent() {
 
           {/* 6.5 Filter panel */}
           {filterOpen && (
-            <Card className="p-4 border-border/50 bg-card/60 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+            <Card className="p-3 border-border/50 bg-card/60">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <Input placeholder="Service name" value={search.service_name ?? ''} onChange={e => setFilter('service_name', e.target.value)} className="text-xs h-8" />
                 <select
-                  className="rounded-md border border-input bg-background px-3 py-1 text-xs h-8"
+                  className="rounded-md border border-input bg-background px-3 py-1 text-xs h-8 text-foreground"
                   value={search.method ?? ''}
                   onChange={e => setFilter('method', e.target.value)}
                 >
                   <option value="">All methods</option>
                   {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <Input placeholder="Status code" value={search.status_code ?? ''} onChange={e => setFilter('status_code', e.target.value)} className="text-xs h-8" />
+                <Input placeholder="Status code (e.g. 404)" value={search.status_code ?? ''} onChange={e => setFilter('status_code', e.target.value)} className="text-xs h-8" />
                 <Input placeholder="Identifier" value={search.identifier ?? ''} onChange={e => setFilter('identifier', e.target.value)} className="text-xs h-8" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Start date</p>
-                  <Input type="datetime-local" value={search.start_date ?? ''} onChange={e => setFilter('start_date', e.target.value ? new Date(e.target.value).toISOString() : '')} className="text-xs h-8" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">End date</p>
-                  <Input type="datetime-local" value={search.end_date ?? ''} onChange={e => setFilter('end_date', e.target.value ? new Date(e.target.value).toISOString() : '')} className="text-xs h-8" />
-                </div>
               </div>
             </Card>
           )}

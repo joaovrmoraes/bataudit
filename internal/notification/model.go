@@ -22,6 +22,8 @@ type Channel struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+func (Channel) TableName() string { return "notification_channels" }
+
 // Delivery records a single notification attempt.
 type Delivery struct {
 	ID           string    `json:"id"             gorm:"primaryKey"`
@@ -32,6 +34,8 @@ type Delivery struct {
 	ResponseBody string    `json:"response_body,omitempty"`
 	DeliveredAt  time.Time `json:"delivered_at"`
 }
+
+func (Delivery) TableName() string { return "notification_deliveries" }
 
 // WebhookConfig is stored in Channel.Config for webhook channels.
 type WebhookConfig struct {

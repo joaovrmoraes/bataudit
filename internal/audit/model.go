@@ -144,8 +144,9 @@ type AuditStats struct {
 
 // InsightFilters for the insights/rankings endpoints
 type InsightFilters struct {
-	ProjectID string
-	Period    string // 7d | 30d | 90d
+	ProjectID   string
+	Period      string // 7d | 30d | 90d
+	Environment string
 }
 
 type TopEndpoint struct {

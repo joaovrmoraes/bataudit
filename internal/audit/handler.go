@@ -220,6 +220,7 @@ func (h *Handler) List(c *gin.Context) {
 		Method:      c.Query("method"),
 		Path:        c.Query("path"),
 		Environment: c.Query("environment"),
+		StatusClass: c.Query("status_class"),
 		EventType:   c.Query("event_type"),
 		SortBy:      c.Query("sort_by"),
 		SortOrder:   c.Query("sort_order"),
@@ -406,6 +407,7 @@ func (h *Handler) Export(c *gin.Context) {
 		Identifier:  c.Query("identifier"),
 		Method:      c.Query("method"),
 		Environment: c.Query("environment"),
+		StatusClass: c.Query("status_class"),
 		EventType:   c.Query("event_type"),
 	}
 	if sc := c.Query("status_code"); sc != "" {
@@ -524,8 +526,9 @@ func (h *Handler) Insights(c *gin.Context) {
 		period = "7d"
 	}
 	filters := InsightFilters{
-		ProjectID: c.Query("project_id"),
-		Period:    period,
+		ProjectID:   c.Query("project_id"),
+		Period:      period,
+		Environment: c.Query("environment"),
 	}
 	result, err := h.service.GetInsights(filters)
 	if err != nil {

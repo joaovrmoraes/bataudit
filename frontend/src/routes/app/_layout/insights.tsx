@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useInsights } from '@/queries/audit'
 import { useProject } from '@/lib/project-context'
+import { useEnvironment } from '@/lib/environment-context'
 import React from 'react'
 
 export const Route = createFileRoute('/app/_layout/insights')({
@@ -61,8 +62,9 @@ function EmptyRow() {
 
 export default function InsightsPage() {
   const { selectedProjectId } = useProject()
+  const { selectedEnvironment } = useEnvironment()
   const [period, setPeriod] = React.useState('7d')
-  const { data, isLoading } = useInsights(selectedProjectId, period)
+  const { data, isLoading } = useInsights(selectedProjectId, period, selectedEnvironment)
   const navigate = useNavigate()
 
   function goToEvents(filters: Record<string, string>) {

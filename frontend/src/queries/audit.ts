@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { ListAudit } from '@/http/audit/list'
 import { getAuditStats } from '@/http/audit/stats'
 import { getAuditDetail } from '@/http/audit/details'
@@ -7,11 +7,39 @@ import { getOrphans, type OrphanFilters } from '@/http/audit/orphans'
 import { getInsights, getAffectedUsers } from '@/http/audit/insights'
 import type { Session } from '@/http/audit/sessions'
 
+const TIME_RANGE_MS: Record<string, number> = {
+  '5m':  5 * 60 * 1000,
+  '15m': 15 * 60 * 1000,
+  '30m': 30 * 60 * 1000,
+  '1h':  60 * 60 * 1000,
+  '3h':  3 * 60 * 60 * 1000,
+  '6h':  6 * 60 * 60 * 1000,
+  '12h': 12 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '3d':  3 * 24 * 60 * 60 * 1000,
+  '7d':  7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+}
+
 export function useAuditList(page: number, limit: number, projectId?: string | null, filters?: Record<string, string | undefined>) {
   return useQuery({
     queryKey: ['audit', page, projectId, filters],
-    queryFn: () => ListAudit({ page, limit, projectId: projectId ?? undefined, ...filters }),
+    queryFn: () => {
+      const resolved = { ...filters }
+      if (filters?.time_range && filters.time_range !== 'custom') {
+        const ms = TIME_RANGE_MS[filters.time_range]
+        if (ms) {
+          resolved.start_date = new Date(Date.now() - ms).toISOString()
+          resolved.end_date = undefined
+        }
+        delete resolved.time_range
+      } else {
+        delete resolved.time_range
+      }
+      return ListAudit({ page, limit, projectId: projectId ?? undefined, ...resolved })
+    },
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -64,10 +92,10 @@ export function useOrphans(filters?: OrphanFilters) {
   })
 }
 
-export function useInsights(projectId?: string | null, period = '7d') {
+export function useInsights(projectId?: string | null, period = '7d', environment?: string | null) {
   return useQuery({
-    queryKey: ['insights', projectId, period],
-    queryFn: () => getInsights(projectId, period),
+    queryKey: ['insights', projectId, period, environment],
+    queryFn: () => getInsights(projectId, period, environment),
     staleTime: 5 * 60_000,
   })
 }

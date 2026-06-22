@@ -34,10 +34,11 @@ export interface InsightsResult {
   top_slow_routes: TopSlowRoute[]
 }
 
-export async function getInsights(projectId?: string | null, period = '7d'): Promise<InsightsResult> {
+export async function getInsights(projectId?: string | null, period = '7d', environment?: string | null): Promise<InsightsResult> {
   const search = new URLSearchParams()
   if (projectId) search.set('project_id', projectId)
   search.set('period', period)
+  if (environment) search.set('environment', environment)
 
   const res = await fetchWithAuth(`${import.meta.env.VITE_API_URL ?? ''}/v1/audit/insights?${search.toString()}`)
   if (!res.ok) throw new Error('Failed to fetch insights')

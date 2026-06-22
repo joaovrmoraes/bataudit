@@ -18,6 +18,7 @@ type ListFilters struct {
 	Method      string
 	Path        string
 	StatusCode  int
+	StatusClass string // 2xx | 3xx | 4xx | 5xx
 	Environment string
 	EventType   string // http | system.alert
 	StartDate   *time.Time
@@ -78,6 +79,16 @@ func (r *repository) List(limit, offset int, filters ListFilters) (ListResult, e
 	}
 	if filters.StatusCode != 0 {
 		query = query.Where("status_code = ?", filters.StatusCode)
+	}
+	switch filters.StatusClass {
+	case "2xx":
+		query = query.Where("status_code >= 200 AND status_code < 300")
+	case "3xx":
+		query = query.Where("status_code >= 300 AND status_code < 400")
+	case "4xx":
+		query = query.Where("status_code >= 400 AND status_code < 500")
+	case "5xx":
+		query = query.Where("status_code >= 500")
 	}
 	if filters.Environment != "" {
 		query = query.Where("environment = ?", filters.Environment)
@@ -141,6 +152,16 @@ func (r *repository) Export(filters ListFilters, maxRows int) ([]AuditSummary, e
 	}
 	if filters.StatusCode != 0 {
 		query = query.Where("status_code = ?", filters.StatusCode)
+	}
+	switch filters.StatusClass {
+	case "2xx":
+		query = query.Where("status_code >= 200 AND status_code < 300")
+	case "3xx":
+		query = query.Where("status_code >= 300 AND status_code < 400")
+	case "4xx":
+		query = query.Where("status_code >= 400 AND status_code < 500")
+	case "5xx":
+		query = query.Where("status_code >= 500")
 	}
 	if filters.Environment != "" {
 		query = query.Where("environment = ?", filters.Environment)
@@ -485,6 +506,9 @@ func (r *repository) GetInsights(filters InsightFilters) (*InsightsResult, error
 			Where("event_type != 'system.alert' OR event_type IS NULL")
 		if filters.ProjectID != "" {
 			q = q.Where("project_id = ?", filters.ProjectID)
+		}
+		if filters.Environment != "" {
+			q = q.Where("environment = ?", filters.Environment)
 		}
 		return q
 	}

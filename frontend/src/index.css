@@ -119,6 +119,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Recharts SVG elements must not show focus rings */
+  .recharts-wrapper *:focus,
+  .recharts-wrapper *:focus-visible {
+    outline: none !important;
+  }
 }
 
 /* Scrollbar styling */
