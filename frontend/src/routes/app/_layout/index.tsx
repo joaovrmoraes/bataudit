@@ -444,9 +444,10 @@ function RouteComponent() {
         <Card className="p-4 border-border/50 bg-card/60 space-y-2">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Events / hour (last 24h) <span className="normal-case text-[10px]">(click to filter)</span></p>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={timelineData} style={{ cursor: 'pointer' }} onClick={(chart: any) => {
-              if (!chart?.activePayload?.[0]) return
-              const rawHour = (chart.activePayload[0].payload as { rawHour?: number }).rawHour
+            <AreaChart data={timelineData} style={{ cursor: 'pointer' }} onClick={(chart) => {
+              const payload = (chart as { activePayload?: { payload: { rawHour?: number } }[] })?.activePayload
+              if (!payload?.[0]) return
+              const rawHour = payload[0].payload.rawHour
               if (rawHour == null) return
               const start = new Date(rawHour)
               const end = new Date(rawHour + 60 * 60 * 1000)
