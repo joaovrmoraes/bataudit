@@ -475,6 +475,11 @@ function RouteComponent() {
             <div className="flex items-center justify-center h-[180px] text-xs text-muted-foreground">
               Select a project to view 90-day history
             </div>
+          ) : historyChartData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[180px] gap-1 text-center">
+              <p className="text-xs text-muted-foreground">No history yet for this project</p>
+              <p className="text-[11px] text-muted-foreground/70">Daily history builds up as events are recorded over time.</p>
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={historyChartData}>
