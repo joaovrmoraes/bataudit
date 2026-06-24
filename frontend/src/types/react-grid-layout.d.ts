@@ -29,4 +29,8 @@ declare module 'react-grid-layout' {
   }
 
   export default class GridLayout extends React.Component<ReactGridLayoutProps> {}
+
+  export function WidthProvider<P>(
+    component: React.ComponentType<P>,
+  ): React.ComponentType<P & { measureBeforeMount?: boolean }>
 }

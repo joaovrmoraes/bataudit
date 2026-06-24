@@ -10,6 +10,23 @@ export interface QueryResult {
   truncated: boolean
 }
 
+/** Template variables substituted into widget/query SQL before it runs.
+ *  Lets a report be reusable + scoped: write `WHERE project_id = '{{project_id}}'`
+ *  and `timestamp >= '{{from}}'`. Substitution is client-side convenience, not
+ *  enforcement (free SQL); enforced multi-tenant scoping is a future RLS step. */
+export interface QueryVars {
+  project_id?: string
+  from?: string
+  to?: string
+}
+
+export function applyVars(sql: string, vars: QueryVars): string {
+  return sql
+    .replace(/\{\{\s*project_id\s*\}\}/g, vars.project_id ?? '')
+    .replace(/\{\{\s*from\s*\}\}/g, vars.from ?? '')
+    .replace(/\{\{\s*to\s*\}\}/g, vars.to ?? '')
+}
+
 export async function runQuery(sql: string): Promise<QueryResult> {
   const res = await fetchWithAuth(`${BASE}/v1/audit/query`, {
     method: 'POST',

@@ -1,7 +1,28 @@
 import { createFileRoute } from '@tanstack/react-router'
 import React from 'react'
-import { Play, Database, AlertCircle, Loader2 } from 'lucide-react'
-import { runQuery, type QueryResult } from '@/http/studio'
+import { Play, Database, AlertCircle, Loader2, Download } from 'lucide-react'
+import { runQuery, applyVars, type QueryResult } from '@/http/studio'
+import { useProject } from '@/lib/project-context'
+
+function toCSV(result: QueryResult): string {
+  const esc = (v: unknown) => {
+    const s = v === null || v === undefined ? '' : String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const head = result.columns.map(esc).join(',')
+  const rows = result.rows.map((r) => r.map(esc).join(','))
+  return [head, ...rows].join('\n')
+}
+
+function downloadCSV(result: QueryResult) {
+  const blob = new Blob([toCSV(result)], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `query-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export const Route = createFileRoute('/app/_layout/query')({
   component: QueryPage,
@@ -10,19 +31,19 @@ export const Route = createFileRoute('/app/_layout/query')({
 const EXAMPLES: { label: string; sql: string }[] = [
   {
     label: 'Recent 5xx errors',
-    sql: "SELECT timestamp, identifier, method, path, status_code\nFROM audits\nWHERE status_code >= 500\nORDER BY timestamp DESC\nLIMIT 50",
+    sql: "SELECT timestamp, identifier, method, path, status_code\nFROM audits\nWHERE project_id = '{{project_id}}' AND status_code >= 500\nORDER BY timestamp DESC\nLIMIT 50",
   },
   {
     label: 'Who changed a resource',
-    sql: "SELECT timestamp, identifier, user_email, method, path\nFROM audits\nWHERE path LIKE '%/assets/%' AND method IN ('PUT','PATCH','DELETE')\nORDER BY timestamp DESC",
+    sql: "SELECT timestamp, identifier, user_email, method, path\nFROM audits\nWHERE project_id = '{{project_id}}'\n  AND path LIKE '%/assets/%' AND method IN ('PUT','PATCH','DELETE')\n  AND timestamp >= '{{from}}'\nORDER BY timestamp DESC",
   },
   {
     label: 'Top routes by volume',
-    sql: 'SELECT path, method, count(*) AS hits\nFROM audits\nGROUP BY path, method\nORDER BY hits DESC\nLIMIT 20',
+    sql: "SELECT path, method, count(*) AS hits\nFROM audits\nWHERE project_id = '{{project_id}}'\nGROUP BY path, method\nORDER BY hits DESC\nLIMIT 20",
   },
   {
     label: 'Slowest routes',
-    sql: 'SELECT path, round(avg(response_time)) AS avg_ms, count(*) AS hits\nFROM audits\nGROUP BY path\nORDER BY avg_ms DESC\nLIMIT 20',
+    sql: "SELECT path, round(avg(response_time)) AS avg_ms, count(*) AS hits\nFROM audits\nWHERE project_id = '{{project_id}}'\nGROUP BY path\nORDER BY avg_ms DESC\nLIMIT 20",
   },
 ]
 
@@ -33,6 +54,7 @@ const SCHEMA = [
 ]
 
 function QueryPage() {
+  const { selectedProjectId } = useProject()
   const [sql, setSql] = React.useState(EXAMPLES[0].sql)
   const [result, setResult] = React.useState<QueryResult | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -42,7 +64,12 @@ function QueryPage() {
     setLoading(true)
     setError(null)
     try {
-      const r = await runQuery(sql)
+      const vars = {
+        project_id: selectedProjectId ?? undefined,
+        from: new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10),
+        to: new Date().toISOString().slice(0, 10),
+      }
+      const r = await runQuery(applyVars(sql, vars))
       setResult(r)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Query failed')
@@ -50,7 +77,7 @@ function QueryPage() {
     } finally {
       setLoading(false)
     }
-  }, [sql])
+  }, [sql, selectedProjectId])
 
   function onKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -107,6 +134,12 @@ function QueryPage() {
                 <span>·</span>
                 <span>{result.elapsed_ms} ms</span>
                 {result.truncated && <span className="text-[#fbbf24]">· truncated to 1000</span>}
+                {result.rows.length > 0 && (
+                  <button onClick={() => downloadCSV(result)}
+                    className="ml-auto inline-flex items-center gap-1 text-muted-foreground hover:text-primary">
+                    <Download className="h-3.5 w-3.5" /> CSV
+                  </button>
+                )}
               </div>
               <ResultTable result={result} />
             </div>
@@ -143,6 +176,9 @@ function QueryPage() {
               ))}
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">Read-only. Only SELECT runs.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Vars: <span className="font-mono">{'{{project_id}}'}</span> <span className="font-mono">{'{{from}}'}</span> <span className="font-mono">{'{{to}}'}</span>
+            </p>
           </div>
         </div>
       </div>

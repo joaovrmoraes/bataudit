@@ -141,3 +141,97 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* ── Studio report — professional print/PDF layout ──────────────────────────
+   A clean, light, corporate document. Only the .print-doc is shown when
+   printing; the interactive app/grid is hidden via Tailwind print: utilities. */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+  html, body {
+    background: #ffffff !important;
+  }
+  /* Recharts text dark on white */
+  .print-doc .recharts-text { fill: #374151 !important; }
+  .print-doc .recharts-cartesian-axis-line,
+  .print-doc .recharts-cartesian-axis-tick-line { stroke: #d1d5db !important; }
+}
+
+.print-doc {
+  color: #111827;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #ffffff;
+}
+.print-doc .print-brand {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 600;
+}
+.print-doc .print-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #111827;
+  margin: 4px 0 2px;
+  letter-spacing: -0.01em;
+}
+.print-doc .print-meta {
+  font-size: 11px;
+  color: #6b7280;
+}
+.print-doc .print-rule {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 14px 0 20px;
+}
+.print-doc .print-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 22px;
+}
+.print-doc .print-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.print-doc .print-section-title .idx { color: #9ca3af; font-weight: 600; }
+.print-doc .print-section-title .tag {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #9ca3af; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px;
+}
+.print-doc table.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+}
+.print-doc table.print-table th {
+  text-align: left;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+.print-doc table.print-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  white-space: nowrap;
+}
+.print-doc .print-footer {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 10px;
+  color: #9ca3af;
+  display: flex;
+  justify-content: space-between;
+}
