@@ -16,8 +16,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as AppLayoutRouteImport } from './routes/app/_layout'
 import { Route as AppLayoutIndexRouteImport } from './routes/app/_layout/index'
+import { Route as AppLayoutStudioRouteImport } from './routes/app/_layout/studio'
 import { Route as AppLayoutSettingsRouteImport } from './routes/app/_layout/settings'
 import { Route as AppLayoutSessionsRouteImport } from './routes/app/_layout/sessions'
+import { Route as AppLayoutQueryRouteImport } from './routes/app/_layout/query'
 import { Route as AppLayoutInsightsRouteImport } from './routes/app/_layout/insights'
 import { Route as AppLayoutAnomaliesRouteImport } from './routes/app/_layout/anomalies'
 import { Route as AppLayoutSettingsWallboardRouteImport } from './routes/app/_layout/settings/wallboard'
@@ -59,6 +61,11 @@ const AppLayoutIndexRoute = AppLayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppLayoutRoute,
 } as any)
+const AppLayoutStudioRoute = AppLayoutStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => AppLayoutRoute,
+} as any)
 const AppLayoutSettingsRoute = AppLayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -67,6 +74,11 @@ const AppLayoutSettingsRoute = AppLayoutSettingsRouteImport.update({
 const AppLayoutSessionsRoute = AppLayoutSessionsRouteImport.update({
   id: '/sessions',
   path: '/sessions',
+  getParentRoute: () => AppLayoutRoute,
+} as any)
+const AppLayoutQueryRoute = AppLayoutQueryRouteImport.update({
+  id: '/query',
+  path: '/query',
   getParentRoute: () => AppLayoutRoute,
 } as any)
 const AppLayoutInsightsRoute = AppLayoutInsightsRouteImport.update({
@@ -128,8 +140,10 @@ export interface FileRoutesByFullPath {
   '/invite/$token': typeof InviteTokenRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/insights': typeof AppLayoutInsightsRoute
+  '/app/query': typeof AppLayoutQueryRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
   '/app/settings': typeof AppLayoutSettingsRouteWithChildren
+  '/app/studio': typeof AppLayoutStudioRoute
   '/app/': typeof AppLayoutIndexRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
@@ -146,8 +160,10 @@ export interface FileRoutesByTo {
   '/invite/$token': typeof InviteTokenRoute
   '/app/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/insights': typeof AppLayoutInsightsRoute
+  '/app/query': typeof AppLayoutQueryRoute
   '/app/sessions': typeof AppLayoutSessionsRoute
   '/app/settings': typeof AppLayoutSettingsRouteWithChildren
+  '/app/studio': typeof AppLayoutStudioRoute
   '/app/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
   '/app/settings/members': typeof AppLayoutSettingsMembersRoute
@@ -165,8 +181,10 @@ export interface FileRoutesById {
   '/invite/$token': typeof InviteTokenRoute
   '/app/_layout/anomalies': typeof AppLayoutAnomaliesRoute
   '/app/_layout/insights': typeof AppLayoutInsightsRoute
+  '/app/_layout/query': typeof AppLayoutQueryRoute
   '/app/_layout/sessions': typeof AppLayoutSessionsRoute
   '/app/_layout/settings': typeof AppLayoutSettingsRouteWithChildren
+  '/app/_layout/studio': typeof AppLayoutStudioRoute
   '/app/_layout/': typeof AppLayoutIndexRoute
   '/app/_layout/settings/api-keys': typeof AppLayoutSettingsApiKeysRoute
   '/app/_layout/settings/healthcheck': typeof AppLayoutSettingsHealthcheckRoute
@@ -185,8 +203,10 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/app/anomalies'
     | '/app/insights'
+    | '/app/query'
     | '/app/sessions'
     | '/app/settings'
+    | '/app/studio'
     | '/app/'
     | '/app/settings/api-keys'
     | '/app/settings/healthcheck'
@@ -203,8 +223,10 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/app/anomalies'
     | '/app/insights'
+    | '/app/query'
     | '/app/sessions'
     | '/app/settings'
+    | '/app/studio'
     | '/app/settings/api-keys'
     | '/app/settings/healthcheck'
     | '/app/settings/members'
@@ -221,8 +243,10 @@ export interface FileRouteTypes {
     | '/invite/$token'
     | '/app/_layout/anomalies'
     | '/app/_layout/insights'
+    | '/app/_layout/query'
     | '/app/_layout/sessions'
     | '/app/_layout/settings'
+    | '/app/_layout/studio'
     | '/app/_layout/'
     | '/app/_layout/settings/api-keys'
     | '/app/_layout/settings/healthcheck'
@@ -284,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLayoutIndexRouteImport
       parentRoute: typeof AppLayoutRoute
     }
+    '/app/_layout/studio': {
+      id: '/app/_layout/studio'
+      path: '/studio'
+      fullPath: '/app/studio'
+      preLoaderRoute: typeof AppLayoutStudioRouteImport
+      parentRoute: typeof AppLayoutRoute
+    }
     '/app/_layout/settings': {
       id: '/app/_layout/settings'
       path: '/settings'
@@ -296,6 +327,13 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/app/sessions'
       preLoaderRoute: typeof AppLayoutSessionsRouteImport
+      parentRoute: typeof AppLayoutRoute
+    }
+    '/app/_layout/query': {
+      id: '/app/_layout/query'
+      path: '/query'
+      fullPath: '/app/query'
+      preLoaderRoute: typeof AppLayoutQueryRouteImport
       parentRoute: typeof AppLayoutRoute
     }
     '/app/_layout/insights': {
@@ -390,16 +428,20 @@ const AppLayoutSettingsRouteWithChildren =
 interface AppLayoutRouteChildren {
   AppLayoutAnomaliesRoute: typeof AppLayoutAnomaliesRoute
   AppLayoutInsightsRoute: typeof AppLayoutInsightsRoute
+  AppLayoutQueryRoute: typeof AppLayoutQueryRoute
   AppLayoutSessionsRoute: typeof AppLayoutSessionsRoute
   AppLayoutSettingsRoute: typeof AppLayoutSettingsRouteWithChildren
+  AppLayoutStudioRoute: typeof AppLayoutStudioRoute
   AppLayoutIndexRoute: typeof AppLayoutIndexRoute
 }
 
 const AppLayoutRouteChildren: AppLayoutRouteChildren = {
   AppLayoutAnomaliesRoute: AppLayoutAnomaliesRoute,
   AppLayoutInsightsRoute: AppLayoutInsightsRoute,
+  AppLayoutQueryRoute: AppLayoutQueryRoute,
   AppLayoutSessionsRoute: AppLayoutSessionsRoute,
   AppLayoutSettingsRoute: AppLayoutSettingsRouteWithChildren,
+  AppLayoutStudioRoute: AppLayoutStudioRoute,
   AppLayoutIndexRoute: AppLayoutIndexRoute,
 }
 

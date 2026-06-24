@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, ShieldAlert, BarChart2, Settings, ChevronLeft, Users, HeartPulse, Tv, Key, Bell, Archive, UserCog } from 'lucide-react'
+import { LayoutDashboard, Activity, ShieldAlert, BarChart2, Settings, ChevronLeft, Users, HeartPulse, Tv, Key, Bell, Archive, UserCog, Terminal, LayoutGrid } from 'lucide-react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { getUser } from '@/lib/auth'
 
@@ -41,6 +41,8 @@ function MainNav() {
         <NavItem to="/app/sessions" icon={Activity} label="Sessions" />
         <NavItem to="/app/anomalies" icon={ShieldAlert} label="Anomalies" />
         <NavItem to="/app/insights" icon={BarChart2} label="Insights" />
+        <NavItem to="/app/query" icon={Terminal} label="Query" />
+        <NavItem to="/app/studio" icon={LayoutGrid} label="Studio" />
       </nav>
 
       <div className="px-2 py-3 border-t border-sidebar-border">

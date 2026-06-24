@@ -19,6 +19,12 @@ type Handler struct {
 	validator  *validator.Validate
 	repository Repository
 	service    *Service
+	queryDB    *gorm.DB // connection used by the SQL Query Console (READ ONLY tx)
+}
+
+// SetQueryDB wires the connection used by the SQL Query Console.
+func (h *Handler) SetQueryDB(db *gorm.DB) {
+	h.queryDB = db
 }
 
 // ProjectResolver resolves or auto-creates a project for a given service_name + api_key_id.
@@ -67,7 +73,49 @@ func (h *Handler) RegisterReadRoutes(router *gin.RouterGroup) {
 	router.GET("/orphans", h.Orphans)
 	router.GET("/insights", h.Insights)
 	router.GET("/affected-users", h.AffectedUsers)
+	router.POST("/query", h.Query)
 	router.GET("/:id", h.Details)
+}
+
+// Query runs an ad-hoc read-only SQL SELECT against the audit data (SQL Query
+// Console / Studio). Owner/admin only. Writes are impossible: the query runs on
+// a read-only role inside a READ ONLY transaction with a statement timeout.
+//
+// @Summary      Run a read-only SQL query
+// @Tags         audit
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object  true  "{ \"sql\": \"SELECT ...\" }"
+// @Success      200   {object}  QueryResult
+// @Failure      400   {object}  map[string]string
+// @Failure      403   {object}  map[string]string
+// @Router       /audit/query [post]
+func (h *Handler) Query(c *gin.Context) {
+	if role := c.GetString("user_role"); role != "owner" && role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "owner or admin only"})
+		return
+	}
+
+	var req struct {
+		SQL string `json:"sql"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if h.queryDB == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "query engine not configured"})
+		return
+	}
+
+	result, err := RunQuery(c.Request.Context(), h.queryDB, req.SQL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 // Create godoc

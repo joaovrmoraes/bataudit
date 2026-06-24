@@ -13,6 +13,7 @@ import (
 	"github.com/joaovrmoraes/bataudit/internal/health"
 	hcpkg "github.com/joaovrmoraes/bataudit/internal/healthcheck"
 	"github.com/joaovrmoraes/bataudit/internal/notification"
+	"github.com/joaovrmoraes/bataudit/internal/reports"
 	"github.com/joaovrmoraes/bataudit/internal/tiering"
 	"github.com/joaovrmoraes/bataudit/internal/wallboard"
 	swaggerFiles "github.com/swaggo/files"
@@ -34,7 +35,13 @@ func registerRoutes(r *gin.Engine, conn *gorm.DB, authService *auth.Service) {
 	auditGroup := v1.Group("/audit")
 	auditGroup.Use(authService.JWTMiddleware())
 	auditHandler := audit.NewHandler(audit.NewRepository(conn))
+	auditHandler.SetQueryDB(conn)
 	auditHandler.RegisterReadRoutes(auditGroup)
+
+	// ── Reports (Studio) ──────────────────────────────────────────────────────
+	reportsGroup := v1.Group("/reports")
+	reportsGroup.Use(authService.JWTMiddleware())
+	reports.NewHandler(reports.NewRepository(conn)).RegisterRoutes(reportsGroup)
 
 	// ── Anomaly ───────────────────────────────────────────────────────────────
 	anomalyGroup := v1.Group("/anomaly")

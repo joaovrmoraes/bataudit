@@ -14,11 +14,15 @@ export const Route = createFileRoute('/app/_layout')({
 
 function AppLayout() {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0 min-h-0">
-        <Header />
-        <main className="flex-1 overflow-y-auto overscroll-none">
+    <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
+      <div className="print:hidden">
+        <Sidebar />
+      </div>
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 print:block print:min-h-0">
+        <div className="print:hidden">
+          <Header />
+        </div>
+        <main className="flex-1 overflow-y-auto overscroll-none print:overflow-visible">
           <Outlet />
         </main>
       </div>
