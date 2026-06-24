@@ -97,7 +97,11 @@ func (s *Sender) sendWebhook(ctx context.Context, ch Channel, payload AlertPaylo
 		"details":      payload.Details,
 	})
 
-	var lastErr error
+	var (
+		lastErr  error
+		lastCode int
+		lastBody string
+	)
 	for attempt := range 3 {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt*attempt) * time.Second)
@@ -118,7 +122,10 @@ func (s *Sender) sendWebhook(ctx context.Context, ch Channel, payload AlertPaylo
 
 		resp, err := s.httpClient.Do(req)
 		if err != nil {
-			lastErr = err
+			// Couldn't reach the endpoint — retry. Keep the connection error so
+			// the caller can report "connection refused / timeout" clearly.
+			lastErr = fmt.Errorf("could not reach endpoint: %w", err)
+			lastCode = 0
 			continue
 		}
 
@@ -126,13 +133,21 @@ func (s *Sender) sendWebhook(ctx context.Context, ch Channel, payload AlertPaylo
 		_, _ = buf.ReadFrom(resp.Body)
 		resp.Body.Close()
 
+		// We reached the endpoint — always keep the real status code and body.
+		lastCode = resp.StatusCode
+		lastBody = buf.String()
+
 		if resp.StatusCode < 400 {
-			return resp.StatusCode, buf.String(), nil
+			return resp.StatusCode, lastBody, nil
 		}
-		lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+		lastErr = fmt.Errorf("endpoint returned HTTP %d", resp.StatusCode)
+		// 4xx is a client/config error — retrying won't help, return now.
+		if resp.StatusCode < 500 {
+			return lastCode, lastBody, lastErr
+		}
 	}
 
-	return 0, "", lastErr
+	return lastCode, lastBody, lastErr
 }
 
 // sendPush sends a Web Push notification using the VAPID protocol.

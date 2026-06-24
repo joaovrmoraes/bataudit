@@ -219,12 +219,15 @@ func (h *Handler) TestWebhook(c *gin.Context) {
 		Details:     map[string]any{"message": "This is a test notification from BatAudit"},
 	})
 
+	// Always 200 from BatAudit's side: the test ran. `ok` reflects whether the
+	// target accepted it, and status_code/error tell the user exactly what
+	// happened (a target error or unreachable URL is the user's config, not a
+	// BatAudit failure — so we don't return our own 502 and hide the real cause).
+	resp := gin.H{"ok": err == nil, "status_code": code, "response": body}
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return
+		resp["error"] = err.Error()
 	}
-
-	c.JSON(http.StatusOK, gin.H{"status_code": code, "response": body})
+	c.JSON(http.StatusOK, resp)
 }
 
 // ListDeliveries returns the last 50 delivery attempts for a webhook.

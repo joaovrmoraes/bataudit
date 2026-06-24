@@ -84,7 +84,7 @@ export async function deleteWebhook(projectId: string, webhookId: string): Promi
 export async function testWebhook(
   projectId: string,
   webhookId: string,
-): Promise<{ status_code: number; response: string }> {
+): Promise<{ ok: boolean; status_code: number; response: string; error?: string }> {
   const res = await fetchWithAuth(
     `${BASE}/v1/notifications/webhooks/${webhookId}/test?project_id=${encodeURIComponent(projectId)}`,
     { method: 'POST' },

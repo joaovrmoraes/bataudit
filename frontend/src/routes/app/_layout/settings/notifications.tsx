@@ -168,7 +168,13 @@ function WebhookRow({
     setTestResult(null)
     try {
       const r = await testWebhook.mutateAsync(webhook.id)
-      setTestResult(`HTTP ${r.status_code} — ${r.response || 'OK'}`)
+      if (r.ok) {
+        setTestResult(`✓ Delivered — HTTP ${r.status_code}${r.response ? ` · ${r.response}` : ''}`)
+      } else if (r.status_code > 0) {
+        setTestResult(`✗ Endpoint returned HTTP ${r.status_code}${r.response ? ` · ${r.response}` : ''}`)
+      } else {
+        setTestResult(`✗ ${r.error || 'Could not reach the endpoint'}`)
+      }
     } catch (e) {
       setTestResult(`Error: ${String(e)}`)
     }
