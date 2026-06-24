@@ -5,6 +5,33 @@ All notable changes to BatAudit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-24
+
+### Changed
+
+- **Professional PDF export for Studio reports.** Reports now print as a clean,
+  light, corporate document (header with title/period/generated date, numbered
+  sections, light tables, dark-on-white charts, footer) instead of the dark app
+  theme. Rendered as a dedicated linear document so pages break cleanly.
+
+### Added
+
+- **Global report period** in Studio (From → To) and **template variables**
+  `{{project_id}}`, `{{from}}`, `{{to}}` substituted into widget/query SQL, so a
+  report can be scoped by project and time and reused. Example queries are
+  scoped by default.
+- **CSV export** of Query Console results.
+- **Delete report** from the Studio UI.
+
+### Performance
+
+- Studio fetches each widget's query once (shared between the grid and the PDF),
+  and the report grid is now responsive to the container width.
+
+> Note: template-variable scoping is a client-side convenience, not enforcement
+> (the SQL is free-form). Enforced multi-tenant scoping (PostgreSQL RLS with the
+> read-only role) is planned for a future release.
+
 ## [1.2.0] - 2026-06-24
 
 ### Added
@@ -45,4 +72,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prevent writes (SQLite has no data-modifying CTEs and stacked statements are
   rejected).
 
+[1.2.1]: https://github.com/joaovrmoraes/bataudit/releases/tag/v1.2.1
 [1.2.0]: https://github.com/joaovrmoraes/bataudit/releases/tag/v1.2.0
